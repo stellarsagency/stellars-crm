@@ -1,0 +1,1450 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
+<script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+<title>Stellars CRM</title>
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&display=swap" rel="stylesheet">
+<script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js"></script>
+<style>
+*{margin:0;padding:0;box-sizing:border-box}
+:root{
+  --bg:#030712;--bg2:#0a0f1e;--card:#0d1321;--card2:#111827;--border:#1e293b;
+  --primary:#6366f1;--primary-glow:rgba(99,102,241,.15);--primary-soft:rgba(99,102,241,.08);
+  --green:#10b981;--green-bg:rgba(16,185,129,.1);--yellow:#f59e0b;--yellow-bg:rgba(245,158,11,.1);
+  --red:#ef4444;--red-bg:rgba(239,68,68,.1);--blue:#3b82f6;--blue-bg:rgba(59,130,246,.1);
+  --purple:#a855f7;--purple-bg:rgba(168,85,247,.1);--pink:#ec4899;--cyan:#06b6d4;
+  --text:#f1f5f9;--text2:#94a3b8;--text3:#64748b;
+  --radius:12px;--radius-lg:16px;--radius-xl:20px;
+  --shadow:0 4px 24px rgba(0,0,0,.3);--shadow-lg:0 8px 40px rgba(0,0,0,.4);
+}
+body{font-family:'Inter',system-ui,sans-serif;background:var(--bg);color:var(--text);min-height:100vh;overflow-x:hidden}
+body::before{content:'';position:fixed;top:-50%;left:-50%;width:200%;height:200%;background:radial-gradient(circle at 30% 20%,rgba(99,102,241,.06) 0%,transparent 50%),radial-gradient(circle at 70% 80%,rgba(168,85,247,.04) 0%,transparent 50%);z-index:0;pointer-events:none}
+
+/* SIDEBAR */
+.sidebar{width:260px;background:rgba(13,19,33,.8);backdrop-filter:blur(20px);border-right:1px solid var(--border);position:fixed;height:100vh;z-index:100;display:flex;flex-direction:column;padding:24px 0;transition:.3s}
+.sidebar-header{padding:0 24px 24px;border-bottom:1px solid var(--border);margin-bottom:8px}
+.sidebar-header .brand{display:flex;align-items:center;gap:12px}
+.sidebar-header .logo{width:40px;height:40px;background:linear-gradient(135deg,var(--primary),var(--purple));border-radius:12px;display:flex;align-items:center;justify-content:center;font-size:18px;font-weight:800;color:#fff}
+.sidebar-header h1{font-size:18px;font-weight:700;background:linear-gradient(135deg,#fff,#94a3b8);-webkit-background-clip:text;-webkit-text-fill-color:transparent}
+.sidebar-header p{font-size:11px;color:var(--text3);margin-top:2px}
+.nav{flex:1;padding:8px 12px;overflow-y:auto}
+.nav-section{font-size:10px;text-transform:uppercase;letter-spacing:1.5px;color:var(--text3);padding:16px 12px 8px;font-weight:600}
+.nav-item{padding:10px 14px;border-radius:var(--radius);cursor:pointer;font-size:13px;font-weight:500;display:flex;align-items:center;gap:12px;transition:all .2s;color:var(--text2);position:relative;margin-bottom:2px}
+.nav-item:hover{background:var(--primary-soft);color:var(--text)}
+.nav-item.active{background:var(--primary-glow);color:var(--primary);font-weight:600}
+.nav-item.active::before{content:'';position:absolute;left:0;top:50%;transform:translateY(-50%);width:3px;height:20px;background:var(--primary);border-radius:0 4px 4px 0}
+.nav-item .icon{font-size:16px;width:20px;text-align:center}
+.nav-item .badge{margin-left:auto;background:var(--primary);color:#fff;font-size:10px;padding:2px 8px;border-radius:20px;font-weight:600;min-width:20px;text-align:center}
+.sidebar-footer{padding:16px 24px;border-top:1px solid var(--border)}
+.user-info{display:flex;align-items:center;gap:10px}
+.user-avatar{width:36px;height:36px;border-radius:10px;background:linear-gradient(135deg,var(--green),var(--cyan));display:flex;align-items:center;justify-content:center;font-size:14px;font-weight:700;color:#fff}
+.user-name{font-size:13px;font-weight:600}.user-role{font-size:11px;color:var(--text3)}
+
+/* MAIN */
+.main{margin-left:260px;padding:28px 32px;position:relative;z-index:1;min-height:100vh}
+.page{display:none;animation:fadeIn .3s ease}.page.active{display:block}
+@keyframes fadeIn{from{opacity:0;transform:translateY(8px)}to{opacity:1;transform:translateY(0)}}
+
+.page-header{display:flex;justify-content:space-between;align-items:center;margin-bottom:24px}
+.page-header h1{font-size:24px;font-weight:700}
+.page-header .subtitle{font-size:13px;color:var(--text3);margin-top:2px}
+.header-actions{display:flex;gap:10px;align-items:center}
+
+/* BUTTONS */
+.btn{padding:10px 20px;border-radius:var(--radius);font-size:13px;font-weight:600;cursor:pointer;transition:all .2s;border:none;display:inline-flex;align-items:center;gap:8px;font-family:inherit}
+.btn:active{transform:scale(.97)}
+.btn-primary{background:linear-gradient(135deg,var(--primary),#818cf8);color:#fff;box-shadow:0 4px 16px rgba(99,102,241,.3)}
+.btn-primary:hover{box-shadow:0 6px 24px rgba(99,102,241,.4);transform:translateY(-1px)}
+.btn-green{background:linear-gradient(135deg,var(--green),#34d399);color:#fff;box-shadow:0 4px 16px rgba(16,185,129,.3)}
+.btn-red{background:linear-gradient(135deg,var(--red),#f87171);color:#fff}
+.btn-yellow{background:linear-gradient(135deg,var(--yellow),#fbbf24);color:#000}
+.btn-outline{background:transparent;border:1px solid var(--border);color:var(--text2)}
+.btn-outline:hover{border-color:var(--primary);color:var(--primary);background:var(--primary-soft)}
+.btn-ghost{background:transparent;color:var(--text2);padding:8px 12px}.btn-ghost:hover{color:var(--text);background:rgba(255,255,255,.05)}
+.btn-sm{padding:7px 14px;font-size:12px;border-radius:8px}
+.btn-icon{width:36px;height:36px;padding:0;display:flex;align-items:center;justify-content:center;border-radius:10px}
+
+/* CARDS */
+.card{background:rgba(13,19,33,.6);backdrop-filter:blur(10px);border:1px solid var(--border);border-radius:var(--radius-lg);padding:20px;transition:all .3s}
+.card:hover{border-color:rgba(99,102,241,.2)}
+.card-header{display:flex;justify-content:space-between;align-items:center;margin-bottom:16px}
+.card-title{font-size:14px;font-weight:600;color:var(--text2)}
+
+/* STAT CARDS */
+.stats-grid{display:grid;grid-template-columns:repeat(4,1fr);gap:16px;margin-bottom:24px}
+.stat-card{background:rgba(13,19,33,.6);backdrop-filter:blur(10px);border:1px solid var(--border);border-radius:var(--radius-lg);padding:20px;position:relative;overflow:hidden;transition:all .3s}
+.stat-card::before{content:'';position:absolute;top:0;left:0;right:0;height:2px;background:var(--stat-color,var(--primary));opacity:.6}
+.stat-card:hover{transform:translateY(-2px);border-color:var(--stat-color,var(--primary));box-shadow:0 8px 32px rgba(0,0,0,.3)}
+.stat-card .stat-icon{width:40px;height:40px;border-radius:12px;display:flex;align-items:center;justify-content:center;font-size:18px;margin-bottom:12px}
+.stat-card .stat-value{font-size:28px;font-weight:800;line-height:1;margin-bottom:4px}
+.stat-card .stat-label{font-size:12px;color:var(--text3);font-weight:500}
+.stat-card .stat-change{font-size:11px;margin-top:8px;display:flex;align-items:center;gap:4px}
+.stat-card .stat-change.up{color:var(--green)}.stat-card .stat-change.down{color:var(--red)}
+
+/* PIPELINE */
+.pipeline{display:flex;gap:16px;overflow-x:auto;padding-bottom:16px;scrollbar-width:thin;scrollbar-color:var(--border) transparent}
+.pipeline::-webkit-scrollbar{height:6px}.pipeline::-webkit-scrollbar-track{background:transparent}.pipeline::-webkit-scrollbar-thumb{background:var(--border);border-radius:3px}
+.pipeline-col{min-width:300px;max-width:320px;flex:1;background:rgba(13,19,33,.4);border:1px solid var(--border);border-radius:var(--radius-lg);padding:16px}
+.pipeline-col-header{display:flex;justify-content:space-between;align-items:center;margin-bottom:14px;padding-bottom:12px;border-bottom:1px solid var(--border)}
+.pipeline-col-title{font-size:13px;font-weight:600;display:flex;align-items:center;gap:8px}
+.pipeline-col-count{background:var(--border);color:var(--text2);font-size:11px;padding:3px 10px;border-radius:20px;font-weight:600}
+.pipeline-cards{max-height:calc(100vh - 280px);overflow-y:auto;scrollbar-width:thin;scrollbar-color:var(--border) transparent}
+
+/* LEAD CARDS */
+.lead-card{background:var(--card);border:1px solid var(--border);border-radius:var(--radius);padding:14px;margin-bottom:8px;cursor:pointer;transition:all .2s}
+.lead-card:hover{border-color:var(--primary);transform:translateY(-1px);box-shadow:0 4px 16px rgba(0,0,0,.2)}
+.lead-card .lead-header{display:flex;justify-content:space-between;align-items:flex-start;margin-bottom:8px}
+.lead-card .lead-name{font-size:13px;font-weight:600;line-height:1.3}
+.lead-card .lead-detail{font-size:11px;color:var(--text3);margin-bottom:2px;display:flex;align-items:center;gap:4px}
+.lead-card .lead-tags{display:flex;gap:4px;flex-wrap:wrap;margin-top:8px}
+.lead-card .lead-rep{display:flex;align-items:center;gap:6px;margin-top:8px;padding-top:8px;border-top:1px solid var(--border);font-size:11px;color:var(--text3)}
+.mini-avatar{width:20px;height:20px;border-radius:6px;display:flex;align-items:center;justify-content:center;font-size:9px;font-weight:700;color:#fff;flex-shrink:0}
+
+/* TAGS */
+.tag{font-size:10px;padding:4px 10px;border-radius:20px;font-weight:600;display:inline-flex;align-items:center;gap:4px;white-space:nowrap}
+.tag-new{background:var(--blue-bg);color:var(--blue)}.tag-contacted{background:var(--yellow-bg);color:var(--yellow)}
+.tag-demo_sent{background:var(--green-bg);color:var(--green)}.tag-meeting_booked{background:var(--purple-bg);color:var(--purple)}
+.tag-meeting_done{background:var(--cyan);background:rgba(6,182,212,.1);color:var(--cyan)}
+.tag-negotiation{background:rgba(249,115,22,.1);color:#f97316}
+.tag-closed_won{background:var(--green-bg);color:var(--green)}.tag-closed_lost{background:var(--red-bg);color:var(--red)}
+
+/* TABLES */
+.table-wrap{background:rgba(13,19,33,.6);border:1px solid var(--border);border-radius:var(--radius-lg);overflow:hidden}
+table{width:100%;border-collapse:collapse}
+thead{background:rgba(15,23,42,.5)}
+th{padding:14px 18px;text-align:left;font-size:11px;text-transform:uppercase;letter-spacing:1px;color:var(--text3);font-weight:600;border-bottom:1px solid var(--border)}
+td{padding:14px 18px;font-size:13px;border-bottom:1px solid rgba(30,41,59,.5)}
+tbody tr{transition:background .15s}
+tbody tr:hover{background:rgba(99,102,241,.03)}
+tbody tr:last-child td{border-bottom:none}
+
+/* FORMS */
+.form-group{margin-bottom:16px}
+.form-group label{display:block;font-size:12px;font-weight:600;color:var(--text2);margin-bottom:6px}
+.form-input{width:100%;padding:10px 14px;background:rgba(3,7,18,.6);border:1px solid var(--border);border-radius:var(--radius);color:var(--text);font-size:13px;font-family:inherit;transition:all .2s}
+.form-input:focus{outline:none;border-color:var(--primary);box-shadow:0 0 0 3px var(--primary-glow)}
+.form-input::placeholder{color:var(--text3)}
+select.form-input{cursor:pointer;appearance:none;background-image:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='12' viewBox='0 0 24 24' fill='none' stroke='%2364748b' stroke-width='2'%3E%3Cpath d='M6 9l6 6 6-6'/%3E%3C/svg%3E");background-repeat:no-repeat;background-position:right 12px center}
+textarea.form-input{resize:vertical;min-height:80px}
+.form-row{display:grid;grid-template-columns:1fr 1fr;gap:14px}
+.search-box{position:relative}.search-box input{padding-left:40px}
+.search-box .search-icon{position:absolute;left:14px;top:50%;transform:translateY(-50%);color:var(--text3);font-size:14px}
+
+/* MODALS */
+.modal-overlay{display:none;position:fixed;top:0;left:0;right:0;bottom:0;background:rgba(0,0,0,.7);backdrop-filter:blur(4px);z-index:1000;align-items:center;justify-content:center;padding:20px}
+.modal-overlay.show{display:flex}
+.modal{background:var(--card);border:1px solid var(--border);border-radius:var(--radius-xl);padding:28px;width:100%;max-width:560px;max-height:85vh;overflow-y:auto;box-shadow:var(--shadow-lg);animation:modalIn .25s ease}
+@keyframes modalIn{from{opacity:0;transform:scale(.95) translateY(10px)}to{opacity:1;transform:scale(1) translateY(0)}}
+.modal-header{display:flex;justify-content:space-between;align-items:center;margin-bottom:20px}
+.modal-header h2{font-size:18px;font-weight:700}
+.modal-close{width:32px;height:32px;border-radius:8px;border:none;background:rgba(255,255,255,.05);color:var(--text3);font-size:18px;cursor:pointer;display:flex;align-items:center;justify-content:center;transition:all .2s}
+.modal-close:hover{background:rgba(239,68,68,.1);color:var(--red)}
+
+/* CALL PANEL */
+.call-orb-container{display:flex;justify-content:center;margin-bottom:24px}
+.call-orb{width:140px;height:140px;border-radius:50%;background:linear-gradient(135deg,var(--primary),#4f46e5);display:flex;align-items:center;justify-content:center;font-size:48px;cursor:pointer;transition:all .3s;box-shadow:0 0 60px rgba(99,102,241,.3);position:relative}
+.call-orb::before{content:'';position:absolute;inset:-4px;border-radius:50%;background:linear-gradient(135deg,var(--primary),var(--purple));opacity:.3;z-index:-1}
+.call-orb:hover{transform:scale(1.05);box-shadow:0 0 80px rgba(99,102,241,.4)}
+.call-orb.active{background:linear-gradient(135deg,var(--green),#059669);animation:pulse 2s infinite}
+@keyframes pulse{0%,100%{box-shadow:0 0 60px rgba(16,185,129,.3)}50%{box-shadow:0 0 80px rgba(16,185,129,.5)}}
+
+/* CHARTS */
+.chart-grid{display:grid;grid-template-columns:2fr 1fr;gap:16px;margin-bottom:24px}
+.chart-container{position:relative;height:200px}
+
+/* FOLLOWUP ITEMS */
+.followup-item{background:var(--card);border:1px solid var(--border);border-radius:var(--radius);padding:16px;margin-bottom:10px;display:flex;justify-content:space-between;align-items:center;transition:all .2s}
+.followup-item:hover{border-color:var(--primary)}
+.followup-item.overdue{border-left:3px solid var(--red)}.followup-item.today{border-left:3px solid var(--yellow)}.followup-item.upcoming{border-left:3px solid var(--green)}
+
+/* EMPTY STATE */
+.empty-state{text-align:center;padding:48px 20px;color:var(--text3)}
+.empty-state .empty-icon{font-size:48px;margin-bottom:12px;opacity:.5}
+.empty-state p{font-size:14px}
+
+/* ACTIVITY FEED */
+.activity-item{display:flex;gap:12px;padding:12px 0;border-bottom:1px solid rgba(30,41,59,.3)}
+.activity-item:last-child{border-bottom:none}
+.activity-dot{width:8px;height:8px;border-radius:50%;margin-top:6px;flex-shrink:0}
+.activity-text{font-size:13px;line-height:1.5}.activity-time{font-size:11px;color:var(--text3);margin-top:2px}
+
+/* SCROLLBAR */
+::-webkit-scrollbar{width:6px}::-webkit-scrollbar-track{background:transparent}::-webkit-scrollbar-thumb{background:var(--border);border-radius:3px}::-webkit-scrollbar-thumb:hover{background:var(--text3)}
+
+/* RESPONSIVE */
+@media(max-width:1200px){.stats-grid{grid-template-columns:repeat(2,1fr)}.chart-grid{grid-template-columns:1fr}}
+@media(max-width:768px){.sidebar{display:none}.main{margin-left:0}.stats-grid{grid-template-columns:1fr}.form-row{grid-template-columns:1fr}}
+</style>
+</head>
+<body>
+
+<!-- LOGIN SCREEN -->
+<div id="loginScreen" style="position:fixed;top:0;left:0;right:0;bottom:0;background:var(--bg);display:flex;align-items:center;justify-content:center;z-index:9999">
+  <div style="background:var(--card);border:1px solid var(--border);border-radius:16px;padding:40px;width:380px;max-width:90vw">
+    <div style="text-align:center;margin-bottom:30px">
+      <div style="width:60px;height:60px;border-radius:16px;background:var(--primary);display:flex;align-items:center;justify-content:center;font-size:24px;font-weight:700;color:white;margin:0 auto 12px">S</div>
+      <h1 style="font-size:20px;margin:0">Stellars CRM</h1>
+      <p style="color:var(--text3);font-size:13px;margin:4px 0 0">Login to continue</p>
+    </div>
+    <div id="loginError" style="display:none;background:var(--red)15;color:var(--red);padding:10px;border-radius:8px;font-size:12px;margin-bottom:16px;text-align:center"></div>
+    <div class="form-group"><label>Username</label><input type="text" class="form-input" id="loginUser" placeholder="Enter username" value="admin"></div>
+    <div class="form-group"><label>Password</label><input type="password" class="form-input" id="loginPass" placeholder="Enter password" value="admin123"></div>
+    <button class="btn btn-primary" style="width:100%;margin-top:8px" onclick="doLogin()">Login</button>
+    <p style="text-align:center;font-size:11px;color:var(--text3);margin-top:16px">Default: admin / admin123</p>
+  </div>
+</div>
+
+<!-- MAIN APP (hidden until login) -->
+<div id="appContainer" style="display:none">
+<div class="sidebar">
+  <div class="sidebar-header">
+    <div class="brand">
+      <div class="logo">S</div>
+      <div><h1>Stellars</h1><p>CRM Dashboard</p></div>
+    </div>
+  </div>
+  <div class="nav">
+    <div class="nav-section">Main</div>
+    <div class="nav-item active" data-page="dashboard" onclick="showPage('dashboard')"><span class="icon">📊</span>Dashboard</div>
+    <div class="nav-item" data-page="pipeline" onclick="showPage('pipeline')"><span class="icon">📋</span>Pipeline</div>
+    <div class="nav-item" data-page="leads" onclick="showPage('leads')"><span class="icon">👥</span>Leads<span class="badge" id="navLeadsBadge">0</span></div>
+    <div class="nav-section">Tools</div>
+    <div class="nav-item" data-page="finder" onclick="showPage('finder')"><span class="icon">🔍</span>Lead Finder</div>
+    <div class="nav-section">Outreach</div>
+    <div class="nav-item" data-page="calls" onclick="showPage('calls')"><span class="icon">📞</span>AI Calling</div>
+    <div class="nav-item" data-page="meetings" onclick="showPage('meetings')"><span class="icon">📅</span>Meetings<span class="badge" id="navMeetingsBadge">0</span></div>
+    <div class="nav-item" data-page="followups" onclick="showPage('followups')"><span class="icon">🔔</span>Follow-ups<span class="badge" id="navFollowupsBadge">0</span></div>
+    <div class="nav-section">Team</div>
+    <div class="nav-item" data-page="reps" onclick="showPage('reps')"><span class="icon">👤</span>Sales Reps</div>
+    <div class="nav-item" data-page="activity" onclick="showPage('activity')"><span class="icon">📝</span>Activity</div>
+    <div class="nav-section">System</div>
+    <div class="nav-item" data-page="settings" onclick="showPage('settings')"><span class="icon">⚙️</span>Settings</div>
+  </div>
+  <div class="sidebar-footer">
+    <div class="user-info">
+      <div class="user-avatar">A</div>
+      <div><div class="user-name">Admin</div><div class="user-role">Manager</div></div>
+    </div>
+    <button onclick="doLogout()" style="background:none;border:1px solid var(--border);color:var(--text3);padding:6px 12px;border-radius:8px;cursor:pointer;font-size:11px;margin-top:8px;width:100%">🚪 Logout</button>
+  </div>
+</div>
+
+<div class="main">
+
+<!-- ===== DASHBOARD ===== -->
+<div class="page active" id="page-dashboard">
+  <div class="page-header">
+    <div><h1>Dashboard</h1><div class="subtitle">Welcome back. Here's your pipeline overview.</div></div>
+    <div class="header-actions">
+      <button class="btn btn-outline btn-sm" onclick="exportCSV()">⬇ Export</button>
+      <button class="btn btn-primary" onclick="showAddLeadModal()">+ Add Lead</button>
+    </div>
+  </div>
+  <div class="stats-grid" id="statsGrid"></div>
+  <div class="chart-grid">
+    <div class="card"><div class="card-header"><span class="card-title">Call Activity (30 Days)</span></div><div class="chart-container"><canvas id="callsChart"></canvas></div></div>
+    <div class="card"><div class="card-header"><span class="card-title">Pipeline Status</span></div><div class="chart-container"><canvas id="statusChart"></canvas></div></div>
+  </div>
+  <div style="display:grid;grid-template-columns:1fr 1fr;gap:16px">
+    <div class="card"><div class="card-header"><span class="card-title">Recent Leads</span><button class="btn btn-ghost btn-sm" onclick="showPage('leads')">View All →</button></div><div id="dashRecentLeads"></div></div>
+    <div class="card"><div class="card-header"><span class="card-title">Top Performers</span></div><div id="dashTopReps"></div></div>
+  </div>
+</div>
+
+<!-- ===== LEAD FINDER ===== -->
+<div class="page" id="page-finder">
+  <div class="page-header">
+    <div><h1>Lead Finder</h1><div class="subtitle">Find businesses with outdated websites - they need you!</div></div>
+  </div>
+  
+  <div class="card" style="margin-bottom:20px">
+    <h3 style="font-size:15px;margin-bottom:16px">🔍 Search Businesses</h3>
+    <div style="display:flex;gap:12px;align-items:flex-end">
+      <div class="form-group" style="flex:1;margin:0">
+        <label>Niche *</label>
+        <div style="display:flex;flex-wrap:wrap;gap:6px">
+          <label style="display:flex;align-items:center;gap:3px;font-size:12px;cursor:pointer;background:var(--bg-tertiary);padding:4px 8px;border-radius:6px">
+            <input type="checkbox" class="niche-check" value="Pest Control" checked> Pest Control
+          </label>
+          <label style="display:flex;align-items:center;gap:3px;font-size:12px;cursor:pointer;background:var(--bg-tertiary);padding:4px 8px;border-radius:6px">
+            <input type="checkbox" class="niche-check" value="Auto Detailing" checked> Auto Detailing
+          </label>
+          <label style="display:flex;align-items:center;gap:3px;font-size:12px;cursor:pointer;background:var(--bg-tertiary);padding:4px 8px;border-radius:6px">
+            <input type="checkbox" class="niche-check" value="Painting" checked> Painting
+          </label>
+          <label style="display:flex;align-items:center;gap:3px;font-size:12px;cursor:pointer;background:var(--bg-tertiary);padding:4px 8px;border-radius:6px">
+            <input type="checkbox" class="niche-check" value="Fence"> Fence
+          </label>
+          <label style="display:flex;align-items:center;gap:3px;font-size:12px;cursor:pointer;background:var(--bg-tertiary);padding:4px 8px;border-radius:6px">
+            <input type="checkbox" class="niche-check" value="Landscaping"> Landscaping
+          </label>
+          <label style="display:flex;align-items:center;gap:3px;font-size:12px;cursor:pointer;background:var(--bg-tertiary);padding:4px 8px;border-radius:6px">
+            <input type="checkbox" class="niche-check" value="Pressure Washing"> Pressure Washing
+          </label>
+          <label style="display:flex;align-items:center;gap:3px;font-size:12px;cursor:pointer;background:var(--bg-tertiary);padding:4px 8px;border-radius:6px">
+            <input type="checkbox" class="niche-check" value="Cleaning Services"> Cleaning
+          </label>
+          <label style="display:flex;align-items:center;gap:3px;font-size:12px;cursor:pointer;background:var(--bg-tertiary);padding:4px 8px;border-radius:6px">
+            <input type="checkbox" class="niche-check" value="Pool Service"> Pool Service
+          </label>
+        </div>
+      </div>
+      <div class="form-group" style="flex:1;margin:0">
+        <label>City *</label>
+        <select class="form-input" id="finderCity" onchange="updateState()">
+          <option value="">Select city...</option>
+          <option disabled>=== FULL STATES ===</option>
+          <option value="__state_tx" data-state="TX">🤠 Full Texas (30 cities)</option>
+          <option value="__state_ga" data-state="GA">🍑 Full Georgia (20 cities)</option>
+          <option value="__state_fl" data-state="FL">🌴 Full Florida (20 cities)</option>
+          <option value="__state_ny" data-state="NY">🗽 Full New York (20 cities)</option>
+          <option value="__state_az" data-state="AZ">🌵 Full Arizona (20 cities)</option>
+          <option value="__state_nc" data-state="NC">🏔️ Full North Carolina (20 cities)</option>
+          <option value="__state_tn" data-state="TN">🎸 Full Tennessee (20 cities)</option>
+          <option disabled>=== MAJOR CITIES ===</option>
+          <option value="Houston" data-state="TX">Houston, TX (2.3M) ⭐</option>
+          <option value="New York" data-state="NY">New York, NY (8.3M) ⭐</option>
+          <option value="Dallas" data-state="TX">Dallas, TX (1.3M) ⭐</option>
+          <option value="Phoenix" data-state="AZ">Phoenix, AZ (1.6M) ⭐</option>
+          <option value="Atlanta" data-state="GA">Atlanta, GA (500K) ⭐</option>
+          <option value="Miami" data-state="FL">Miami, FL (450K) ⭐</option>
+          <option value="San Antonio" data-state="TX">San Antonio, TX (1.5M)</option>
+          <option value="Austin" data-state="TX">Austin, TX (1.0M)</option>
+          <option value="Nashville" data-state="TN">Nashville, TN (700K)</option>
+          <option value="Charlotte" data-state="NC">Charlotte, NC (900K)</option>
+          <option value="Tampa" data-state="FL">Tampa, FL (400K)</option>
+          <option disabled>=== SMALL CITIES (Best Conversion) ===</option>
+          <option value="__small_tx" data-state="TX">🏘️ Small Texas (20 cities)</option>
+          <option value="__small_ga" data-state="GA">🏘️ Small Georgia (20 cities)</option>
+          <option value="__small_fl" data-state="FL">🏘️ Small Florida (20 cities)</option>
+          <option value="__small_ny" data-state="NY">🏘️ Small New York (20 cities)</option>
+          <option value="__small_az" data-state="AZ">🏘️ Small Arizona (20 cities)</option>
+          <option value="__small_nc" data-state="NC">🏘️ Small North Carolina (20 cities)</option>
+          <option value="__small_tn" data-state="TN">🏘️ Small Tennessee (20 cities)</option>
+        </select>
+      </div>
+      <div class="form-group" style="width:100px;margin:0">
+        <label>State</label>
+        <input type="text" class="form-input" id="finderState" placeholder="TX" readonly>
+      </div>
+      <div class="form-group" style="width:150px;margin:0">
+        <label>Goal Type</label>
+        <select class="form-input" id="finderGoalType">
+          <option value="no_website">No Website</option>
+          <option value="outdated">Outdated Website</option>
+          <option value="all">All Leads</option>
+        </select>
+      </div>
+      <div class="form-group" style="width:100px;margin:0">
+        <label>Goal Count</label>
+        <input type="number" class="form-input" id="finderMax" value="50" min="5" max="500">
+      </div>
+      <button class="btn btn-primary" onclick="runMultiNicheScrape()" id="finderSearchBtn">🔍 Scrape Selected</button>
+      <label style="display:flex;align-items:center;gap:4px;font-size:12px;color:var(--text-dim);cursor:pointer;white-space:nowrap">
+        <input type="checkbox" id="finderWatchMode"> 👁 Watch Chrome
+      </label>
+      <button class="btn btn-outline" onclick="searchLeads()" id="finderDemoBtn">📊 Demo</button>
+    </div>
+  </div>
+
+  <div id="finderResults" style="display:none">
+    <div class="card" style="margin-bottom:16px">
+      <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:12px">
+        <h3 style="font-size:15px">📋 Results (<span id="finderCount">0</span>)</h3>
+        <div style="display:flex;gap:8px;flex-wrap:wrap;align-items:center">
+          <button class="btn btn-outline btn-sm" onclick="filterFinder('all')">All</button>
+          <button class="btn btn-outline btn-sm" onclick="filterFinder('new_only')">🆕 New Only</button>
+          <button class="btn btn-outline btn-sm" onclick="filterFinder('no_website')">No Website</button>
+          <button class="btn btn-outline btn-sm" onclick="filterFinder('outdated')">Outdated</button>
+          <button class="btn btn-sm" style="background:var(--green);color:#000;font-weight:600" onclick="filterFinder('high_value')">⭐ High Value</button>
+          <button class="btn btn-outline btn-sm" onclick="analyzeWebsites()" id="analyzeBtn">🔬 Analyze Sites</button>
+          <span style="color:var(--text3);font-size:12px">|</span>
+          <label style="display:flex;align-items:center;gap:4px;font-size:12px;cursor:pointer"><input type="checkbox" id="finderSelectAll" onchange="toggleSelectAll()"> Select All</label>
+          <button class="btn btn-green btn-sm" onclick="addSelectedToLeads()">+ Add Selected (<span id="selectedCount">0</span>)</button>
+          <button class="btn btn-sm" style="background:var(--green);color:#000;font-weight:600" onclick="addAllToLeads()">⚡ Add ALL</button>
+          <button class="btn btn-outline btn-sm" onclick="toggleFinderMap()">🗺️ Map</button>
+        </div>
+      </div>
+      <p id="finderMessage" style="font-size:12px;color:var(--text3);margin-bottom:12px"></p>
+      <div id="finderMap" style="height:300px;border-radius:8px;margin-bottom:12px;display:none"></div>
+      <div id="finderList"></div>
+    </div>
+  </div>
+
+  <div id="finderEmpty" class="card">
+    <div class="empty-state">
+      <div class="empty-icon">🔍</div>
+      <p>Search for businesses to find leads with outdated websites</p>
+      <p style="font-size:12px;margin-top:8px;color:var(--text3)">Select a niche and city, then click Search</p>
+    </div>
+  </div>
+</div>
+
+<!-- ===== PIPELINE ===== -->
+<div class="page" id="page-pipeline">
+  <div class="page-header"><h1>Pipeline</h1><div class="subtitle">Drag and track leads through your sales process</div></div>
+  <div class="pipeline" id="pipelineView"></div>
+</div>
+
+<!-- ===== LEADS ===== -->
+<div class="page" id="page-leads">
+  <div class="page-header">
+    <div><h1>Leads</h1><div class="subtitle">Manage all your prospects in one place</div></div>
+    <div class="header-actions">
+      <button class="btn btn-outline btn-sm" onclick="toggleLeadsMap()">🗺️ Map</button>
+      <button class="btn btn-outline btn-sm" onclick="exportCSV()">⬇ Export CSV</button>
+      <button class="btn btn-outline btn-sm" onclick="showImportModal()">📥 Import</button>
+      <button class="btn btn-primary" onclick="showAddLeadModal()">+ Add Lead</button>
+    </div>
+  </div>
+  <div id="leadsMapContainer" style="display:none;margin-bottom:16px">
+    <div id="leadsMap" style="height:400px;border-radius:12px;border:1px solid var(--border)"></div>
+  </div>
+  <div style="display:flex;gap:10px;margin-bottom:16px;align-items:center;flex-wrap:wrap">
+    <div class="search-box" style="flex:1;min-width:200px"><span class="search-icon">🔍</span><input type="text" class="form-input" placeholder="Search leads..." id="leadSearch" oninput="filterLeads()"></div>
+    <select class="form-input" style="width:140px" id="filterStatus" onchange="filterLeads()"><option value="">All Status</option><option value="new">New</option><option value="contacted">Contacted</option><option value="demo_sent">Demo Sent</option><option value="meeting_booked">Meeting Booked</option><option value="meeting_done">Meeting Done</option><option value="negotiation">Negotiation</option><option value="closed_won">Closed Won</option><option value="closed_lost">Closed Lost</option></select>
+    <select class="form-input" style="width:140px" id="filterNiche" onchange="filterLeads()"><option value="">All Niches</option></select>
+    <select class="form-input" style="width:140px" id="filterCity" onchange="filterLeads()"><option value="">All Cities</option></select>
+    <select class="form-input" style="width:120px" id="filterGroupBy" onchange="filterLeads()">
+      <option value="city" selected>Group by City</option>
+      <option value="">No Grouping</option>
+      <option value="state">Group by State</option>
+      <option value="niche">Group by Niche</option>
+      <option value="status">Group by Status</option>
+    </select>
+    <label style="display:flex;align-items:center;gap:4px;font-size:12px;cursor:pointer"><input type="checkbox" id="leadSelectAll" onchange="toggleLeadSelectAll()"> Select All</label>
+    <button class="btn btn-red btn-sm" onclick="deleteSelectedLeads()">🗑 Delete (<span id="leadSelectedCount">0</span>)</button>
+  </div>
+  <div class="table-wrap">
+    <table><thead><tr><th style="width:30px"><input type="checkbox" id="leadTableCheckAll" onchange="toggleLeadSelectAll()"></th><th>Business</th><th>Contact</th><th>Niche</th><th>⭐ Rating</th><th>📱 Phone</th><th>🌐 Website</th><th>📍 City</th><th>📦 Status</th><th>💰 Value</th><th>Actions</th></tr></thead><tbody id="leadsTable"></tbody></table>
+  </div>
+</div>
+
+<!-- ===== CALLS ===== -->
+<div class="page" id="page-calls">
+  <div class="page-header"><h1>AI Cold Calling</h1><div class="subtitle">Automated calls via Bland.ai</div></div>
+  <div style="display:grid;grid-template-columns:1fr 1fr;gap:20px">
+    <div class="card" style="text-align:center">
+      <div class="call-orb-container"><div class="call-orb" id="callOrb" onclick="toggleCall()">🎙️</div></div>
+      <p id="callStatus" style="color:var(--text3);margin-bottom:20px;font-size:14px">Select a lead to start calling</p>
+      <div class="form-group"><select class="form-input" id="callLeadSelect"><option value="">Select lead to call...</option></select></div>
+      <div style="display:flex;gap:8px;justify-content:center">
+        <button class="btn btn-green" onclick="startAICall()">📞 Start AI Call</button>
+        <button class="btn btn-red btn-sm" onclick="endCall()">⏹ End</button>
+      </div>
+    </div>
+    <div class="card"><div class="card-header"><span class="card-title">Call History</span></div><div id="callHistory" style="max-height:400px;overflow-y:auto"></div></div>
+  </div>
+</div>
+
+<!-- ===== MEETINGS ===== -->
+<div class="page" id="page-meetings">
+  <div class="page-header"><h1>Meetings</h1><div class="subtitle">Track upcoming and past meetings</div></div>
+  <div id="meetingsList"></div>
+</div>
+
+<!-- ===== FOLLOW-UPS ===== -->
+<div class="page" id="page-followups">
+  <div class="page-header"><h1>Follow-ups</h1><div class="subtitle">Never miss a follow-up</div></div>
+  <div id="followupsList"></div>
+</div>
+
+<!-- ===== REPS ===== -->
+<div class="page" id="page-reps">
+  <div class="page-header">
+    <div><h1>Sales Reps</h1><div class="subtitle">Your closers and setters</div></div>
+    <button class="btn btn-primary" onclick="showAddRepModal()">+ Add Rep</button>
+  </div>
+  <div id="repsGrid" style="display:grid;grid-template-columns:repeat(auto-fill,minmax(300px,1fr));gap:16px"></div>
+</div>
+
+<!-- ===== ACTIVITY ===== -->
+<div class="page" id="page-activity">
+  <div class="page-header"><h1>Activity Feed</h1><div class="subtitle">All actions across your pipeline</div></div>
+  <div class="card"><div id="activityFeed"></div></div>
+</div>
+
+<!-- ===== SETTINGS ===== -->
+<div class="page" id="page-settings">
+  <div class="page-header"><h1>Settings</h1><div class="subtitle">Configure your integrations</div></div>
+  <div style="max-width:700px">
+    <div class="card" style="margin-bottom:16px">
+      <h3 style="font-size:15px;margin-bottom:16px">👥 User Management</h3>
+      <div style="display:flex;gap:8px;margin-bottom:16px">
+        <input type="text" class="form-input" id="newUsername" placeholder="Username" style="flex:1">
+        <input type="password" class="form-input" id="newPassword" placeholder="Password" style="flex:1">
+        <input type="text" class="form-input" id="newName" placeholder="Full Name" style="flex:1">
+        <select class="form-input" id="newRole" style="width:120px"><option value="admin">Admin</option><option value="caller" selected>Caller</option></select>
+        <button class="btn btn-green" onclick="addUser()">+ Add</button>
+      </div>
+      <div id="usersList"></div>
+    </div>
+    <div class="card" style="margin-bottom:16px">
+      <h3 style="font-size:15px;margin-bottom:16px">🤖 Bland.ai Integration</h3>
+      <div class="form-group"><label>API Key</label><input type="password" class="form-input" id="blandApiKey" placeholder="Enter Bland.ai API key"></div>
+      <div class="form-group"><label>Agent ID (optional)</label><input type="text" class="form-input" id="blandAgentId" placeholder="Enter agent ID"></div>
+      <button class="btn btn-primary" onclick="saveSettings()">💾 Save Settings</button>
+    </div>
+    <div class="card">
+      <h3 style="font-size:15px;margin-bottom:16px">🔍 Google Places API (for Lead Finder)</h3>
+      <p style="font-size:12px;color:var(--text3);margin-bottom:12px">Get real business data from Google Maps. Get free key at: console.cloud.google.com</p>
+      <div class="form-group"><label>Google API Key</label><input type="password" class="form-input" id="googleApiKey" placeholder="Enter Google Places API key"></div>
+      <button class="btn btn-primary" onclick="saveSettings()">💾 Save Settings</button>
+    </div>
+  </div>
+</div>
+
+</div>
+
+<!-- ===== ADD LEAD MODAL ===== -->
+<div class="modal-overlay" id="addLeadModal">
+  <div class="modal">
+    <div class="modal-header"><h2>Add New Lead</h2><button class="modal-close" onclick="closeModal('addLeadModal')">&times;</button></div>
+    <div class="form-row">
+      <div class="form-group"><label>Business Name *</label><input type="text" class="form-input" id="fBizName" placeholder="e.g. ABC Pest Control"></div>
+      <div class="form-group"><label>Owner Name *</label><input type="text" class="form-input" id="fOwnerName" placeholder="e.g. John Smith"></div>
+    </div>
+    <div class="form-row">
+      <div class="form-group"><label>Phone</label><input type="text" class="form-input" id="fPhone" placeholder="(555) 123-4567"></div>
+      <div class="form-group"><label>Email</label><input type="email" class="form-input" id="fEmail" placeholder="john@example.com"></div>
+    </div>
+    <div class="form-row">
+      <div class="form-group"><label>City</label><input type="text" class="form-input" id="fCity" placeholder="Dallas"></div>
+      <div class="form-group"><label>State</label><input type="text" class="form-input" id="fState" placeholder="TX"></div>
+    </div>
+    <div class="form-row">
+      <div class="form-group"><label>Niche</label><select class="form-input" id="fNiche"><option value="Pest Control">Pest Control</option><option value="Landscaping">Landscaping</option><option value="Plumbing">Plumbing</option><option value="HVAC">HVAC</option><option value="Electrical">Electrical</option><option value="Roofing">Roofing</option><option value="Auto Detailing">Auto Detailing</option><option value="Fence">Fence</option><option value="Concrete">Concrete</option><option value="Pressure Washing">Pressure Washing</option><option value="Other">Other</option></select></div>
+      <div class="form-group"><label>Website</label><input type="text" class="form-input" id="fWebsite" placeholder="https://..."></div>
+    </div>
+    <div class="form-group"><label>Notes</label><textarea class="form-input" id="fNotes" rows="3" placeholder="Any notes about this lead..."></textarea></div>
+    <button class="btn btn-primary" onclick="addLead()" style="width:100%">✅ Add Lead</button>
+  </div>
+</div>
+
+<!-- ===== ADD REP MODAL ===== -->
+<div class="modal-overlay" id="addRepModal">
+  <div class="modal">
+    <div class="modal-header"><h2>Add Sales Rep</h2><button class="modal-close" onclick="closeModal('addRepModal')">&times;</button></div>
+    <div class="form-row">
+      <div class="form-group"><label>Name *</label><input type="text" class="form-input" id="fRepName" placeholder="e.g. Ahmed"></div>
+      <div class="form-group"><label>Role</label><select class="form-input" id="fRepRole"><option value="closer">Closer</option><option value="setter">Setter</option><option value="manager">Manager</option></select></div>
+    </div>
+    <div class="form-row">
+      <div class="form-group"><label>Email</label><input type="email" class="form-input" id="fRepEmail" placeholder="ahmed@company.com"></div>
+      <div class="form-group"><label>Phone</label><input type="text" class="form-input" id="fRepPhone" placeholder="(555) 987-6543"></div>
+    </div>
+    <button class="btn btn-primary" onclick="addRep()" style="width:100%">✅ Add Rep</button>
+  </div>
+</div>
+
+<!-- ===== LEAD DETAIL MODAL ===== -->
+<div class="modal-overlay" id="leadDetailModal">
+  <div class="modal" style="max-width:640px">
+    <div class="modal-header"><h2 id="detailTitle">Lead Details</h2><button class="modal-close" onclick="closeModal('leadDetailModal')">&times;</button></div>
+    <div id="leadDetailContent"></div>
+  </div>
+</div>
+
+<!-- ===== IMPORT MODAL ===== -->
+<div class="modal-overlay" id="importModal">
+  <div class="modal">
+    <div class="modal-header"><h2>Import Leads</h2><button class="modal-close" onclick="closeModal('importModal')">&times;</button></div>
+    <div class="form-group"><label>Paste CSV data (one per line: business_name,owner_name,phone,email,city,state,niche)</label><textarea class="form-input" id="importData" rows="10" placeholder="ABC Pest Control,John Smith,555-1234,john@email.com,Dallas,TX,Pest Control"></textarea></div>
+    <button class="btn btn-primary" onclick="importLeads()" style="width:100%">📥 Import Leads</button>
+  </div>
+</div>
+
+<script>
+const API='http://localhost:3000/api';
+let allLeads=[],allReps=[],callsChart,statusChart;
+let currentUserRole = 'admin';
+
+// ========== AUTH ==========
+async function doLogin() {
+  const username = document.getElementById('loginUser').value;
+  const password = document.getElementById('loginPass').value;
+  const errDiv = document.getElementById('loginError');
+  try {
+    const user = await api('/auth/login', 'POST', { username, password });
+    currentUserRole = user.role;
+    document.getElementById('loginScreen').style.display = 'none';
+    document.getElementById('appContainer').style.display = 'block';
+    applyRoleAccess();
+    showPage('dashboard');
+  } catch(e) {
+    errDiv.textContent = e.message || 'Login failed';
+    errDiv.style.display = 'block';
+  }
+}
+
+function applyRoleAccess() {
+  const callerHidden = ['calls', 'settings', 'reps', 'finder'];
+  document.querySelectorAll('.nav-item').forEach(item => {
+    const page = item.dataset.page;
+    if (currentUserRole === 'caller' && callerHidden.includes(page)) {
+      item.style.display = 'none';
+    } else {
+      item.style.display = 'flex';
+    }
+  });
+}
+
+function doLogout() {
+  api('/auth/logout', 'POST');
+  currentUserRole = 'admin';
+  document.getElementById('appContainer').style.display = 'none';
+  document.getElementById('loginScreen').style.display = 'flex';
+}
+
+// Check if already logged in
+(async function() {
+  try {
+    const user = await api('/auth/me');
+    currentUserRole = user.role;
+    document.getElementById('loginScreen').style.display = 'none';
+    document.getElementById('appContainer').style.display = 'block';
+    applyRoleAccess();
+    showPage('dashboard');
+  } catch(e) {
+    // Not logged in, show login screen
+  }
+})();
+
+// ========== NAVIGATION ==========
+function showPage(p){
+  document.querySelectorAll('.page').forEach(x=>x.classList.remove('active'));
+  document.querySelectorAll('.nav-item').forEach(x=>x.classList.remove('active'));
+  document.getElementById('page-'+p).classList.add('active');
+  document.querySelector(`[data-page="${p}"]`).classList.add('active');
+  loadPage(p);
+}
+function loadPage(p){
+  const m={dashboard:loadDashboard,pipeline:loadPipeline,leads:loadLeads,calls:loadCalls,meetings:loadMeetings,followups:loadFollowups,reps:loadReps,activity:loadActivity,settings:loadSettings};
+  if(m[p])m[p]();
+}
+function closeModal(id){document.getElementById(id).classList.remove('show');}
+function openModal(id){document.getElementById(id).classList.add('show');}
+
+// ========== API ==========
+async function api(ep,method='GET',body=null){
+  const o={method,headers:{'Content-Type':'application/json'}};
+  if(body)o.body=JSON.stringify(body);
+  const r=await fetch(API+ep,o);
+  if(!r.ok){
+    const err = await r.json().catch(()=>({error:'Request failed'}));
+    throw new Error(err.error || 'Request failed');
+  }
+  return r.json();
+}
+
+// ========== DASHBOARD ==========
+async function loadDashboard(){
+  const s=await api('/stats');
+  document.getElementById('navLeadsBadge').textContent=s.newLeads;
+  document.getElementById('navMeetingsBadge').textContent=s.todayMeetings;
+  document.getElementById('navFollowupsBadge').textContent=s.todayFollowups;
+
+  document.getElementById('statsGrid').innerHTML=`
+    <div class="stat-card" style="--stat-color:var(--blue)"><div class="stat-icon" style="background:var(--blue-bg);color:var(--blue)">👥</div><div class="stat-value">${s.total}</div><div class="stat-label">Total Leads</div><div class="stat-change up">+${s.thisWeek} this week</div></div>
+    <div class="stat-card" style="--stat-color:var(--green)"><div class="stat-icon" style="background:var(--green-bg);color:var(--green)">💰</div><div class="stat-value" style="color:var(--green)">$${s.revenue.toLocaleString()}</div><div class="stat-label">Revenue</div><div class="stat-change up">${s.closedWon} deals closed</div></div>
+    <div class="stat-card" style="--stat-color:var(--yellow)"><div class="stat-icon" style="background:var(--yellow-bg);color:var(--yellow)">📅</div><div class="stat-value" style="color:var(--yellow)">${s.todayMeetings}</div><div class="stat-label">Meetings Today</div><div class="stat-change">${s.todayFollowups} follow-ups due</div></div>
+    <div class="stat-card" style="--stat-color:var(--purple)"><div class="stat-icon" style="background:var(--purple-bg);color:var(--purple)">📈</div><div class="stat-value" style="color:var(--purple)">${s.conversionRate}%</div><div class="stat-label">Conversion Rate</div><div class="stat-change">Avg deal: $${s.avgDealValue.toLocaleString()}</div></div>
+  `;
+
+  const leads=await api('/leads?limit=5');
+  document.getElementById('dashRecentLeads').innerHTML=leads.length?leads.map(l=>`
+    <div class="lead-card" onclick="showLeadDetail(${l.id})">
+      <div class="lead-header"><div class="lead-name">${l.business_name}</div><span class="tag tag-${l.status}">${l.status.replace(/_/g,' ')}</span></div>
+      <div class="lead-detail">👤 ${l.owner_name||'—'} · 📱 ${l.phone||'—'}</div>
+      <div class="lead-detail">📍 ${l.city||'—'} · ${l.niche||'—'}</div>
+    </div>`).join(''):'<div class="empty-state"><div class="empty-icon">📋</div><p>No leads yet</p></div>';
+
+  document.getElementById('dashTopReps').innerHTML=s.topReps.length?s.topReps.map(r=>`
+    <div class="followup-item">
+      <div style="display:flex;align-items:center;gap:10px">
+        <div class="mini-avatar" style="background:${r.avatar_color}">${r.name.charAt(0)}</div>
+        <div><strong>${r.name}</strong><br><span style="font-size:11px;color:var(--text3)">${r.assigned} leads · ${r.closed} closed</span></div>
+      </div>
+      <div style="text-align:right"><div style="font-weight:700;color:var(--green)">$${r.revenue.toLocaleString()}</div><div style="font-size:11px;color:var(--text3)">revenue</div></div>
+    </div>`).join(''):'<div class="empty-state"><p>No reps yet</p></div>';
+
+  renderCharts(s);
+}
+
+function renderCharts(s){
+  const ctx1=document.getElementById('callsChart');
+  if(callsChart)callsChart.destroy();
+  callsChart=new Chart(ctx1,{type:'line',data:{labels:s.dailyCalls.map(d=>d.day.split('-').slice(1).join('/')),datasets:[{label:'Calls',data:s.dailyCalls.map(d=>d.count),borderColor:'#6366f1',backgroundColor:'rgba(99,102,241,.1)',fill:true,tension:.4,pointRadius:2,pointHoverRadius:5}]},options:{responsive:true,maintainAspectRatio:false,plugins:{legend:{display:false}},scales:{x:{grid:{color:'rgba(30,41,59,.3)'},ticks:{color:'#64748b',font:{size:10}}},y:{grid:{color:'rgba(30,41,59,.3)'},ticks:{color:'#64748b',font:{size:10}}}}}});
+
+  const ctx2=document.getElementById('statusChart');
+  if(statusChart)statusChart.destroy();
+  const colors={'new':'#3b82f6','contacted':'#f59e0b','demo_sent':'#10b981','meeting_booked':'#a855f7','meeting_done':'#06b6d4','negotiation':'#f97316','closed_won':'#22c55e','closed_lost':'#ef4444'};
+  statusChart=new Chart(ctx2,{type:'doughnut',data:{labels:s.statusBreakdown.map(x=>x.status.replace(/_/g,' ')),datasets:[{data:s.statusBreakdown.map(x=>x.count),backgroundColor:s.statusBreakdown.map(x=>colors[x.status]||'#64748b'),borderWidth:0}]},options:{responsive:true,maintainAspectRatio:false,cutout:'65%',plugins:{legend:{position:'bottom',labels:{color:'#94a3b8',font:{size:10},padding:8,usePointStyle:true,pointStyleWidth:8}}}}});
+}
+
+// ========== PIPELINE ==========
+async function loadPipeline(){
+  const p=await api('/pipeline');
+  const cols=[
+    {key:'new',title:'New Leads',icon:'🆕',color:'var(--blue)'},
+    {key:'contacted',title:'Contacted',icon:'📞',color:'var(--yellow)'},
+    {key:'demo_sent',title:'Demo Sent',icon:'📦',color:'var(--green)'},
+    {key:'meeting_booked',title:'Meeting Booked',icon:'📅',color:'var(--purple)'},
+    {key:'meeting_done',title:'Meeting Done',icon:'✅',color:'var(--cyan)'},
+    {key:'negotiation',title:'Negotiation',icon:'💰',color:'#f97316'},
+    {key:'closed_won',title:'Won',icon:'🎉',color:'var(--green)'},
+    {key:'closed_lost',title:'Lost',icon:'❌',color:'var(--red)'}
+  ];
+  document.getElementById('pipelineView').innerHTML=cols.map(c=>`
+    <div class="pipeline-col">
+      <div class="pipeline-col-header">
+        <div class="pipeline-col-title" style="color:${c.color}">${c.icon} ${c.title}</div>
+        <span class="pipeline-col-count">${p[c.key].length}</span>
+      </div>
+      <div class="pipeline-cards">
+        ${p[c.key].map(l=>`
+          <div class="lead-card" onclick="showLeadDetail(${l.id})">
+            <div class="lead-header"><div class="lead-name">${l.business_name}</div></div>
+            <div class="lead-detail">👤 ${l.owner_name||'—'}</div>
+            <div class="lead-detail">📍 ${l.city||'—'} · ${l.niche||'—'}</div>
+            <div class="lead-detail">📱 ${l.phone||'—'}</div>
+            ${l.rep_name?`<div class="lead-rep"><div class="mini-avatar" style="background:${l.rep_color||'var(--primary)'}">${l.rep_name.charAt(0)}</div>${l.rep_name}</div>`:''}
+          </div>
+        `).join('')}
+        ${p[c.key].length===0?'<div class="empty-state"><p>No leads</p></div>':''}
+      </div>
+    </div>`).join('');
+}
+
+// ========== LEADS ==========
+async function loadLeads(){
+  allLeads=await api('/leads');
+  document.getElementById('leadSearch').value='';
+  document.getElementById('filterStatus').value='';
+  document.getElementById('filterNiche').value='';
+  document.getElementById('filterCity').value='';
+  const niches=[...new Set(allLeads.map(l=>l.niche).filter(Boolean))];
+  const cities=[...new Set(allLeads.map(l=>l.city).filter(Boolean))].sort();
+  const sel=document.getElementById('filterNiche');
+  sel.innerHTML='<option value="">All Niches</option>'+niches.map(n=>`<option value="${n}">${n}</option>`).join('');
+  const citySel=document.getElementById('filterCity');
+  citySel.innerHTML='<option value="">All Cities</option>'+cities.map(c=>`<option value="${c}">${c}</option>`).join('');
+  filterLeads();
+}
+function filterLeads(){
+  const q=(document.getElementById('leadSearch').value||'').toLowerCase();
+  const st=document.getElementById('filterStatus').value;
+  const ni=document.getElementById('filterNiche').value;
+  const ci=document.getElementById('filterCity').value;
+  const groupBy=document.getElementById('filterGroupBy').value;
+  let f=allLeads;
+  if(q)f=f.filter(l=>(l.business_name||'').toLowerCase().includes(q)||(l.owner_name||'').toLowerCase().includes(q)||(l.phone||'').includes(q)||(l.city||'').toLowerCase().includes(q)||(l.niche||'').toLowerCase().includes(q));
+  if(st)f=f.filter(l=>l.status===st);
+  if(ni)f=f.filter(l=>l.niche===ni);
+  if(ci)f=f.filter(l=>l.city===ci);
+  
+  if(groupBy){
+    const groups={};
+    f.forEach(l=>{const key=l[groupBy]||'Unknown';if(!groups[key])groups[key]=[];groups[key].push(l);});
+    const groupKeys=Object.keys(groups).sort();
+    const icons={city:'📍',state:'🗺️',niche:'🏷️',status:'📦'};
+    const colors={city:'#3b82f6',state:'#22c55e',niche:'#eab308',status:'#a855f7'};
+    let html='';
+    groupKeys.forEach(g=>{
+      const c=colors[groupBy]||'var(--primary)';
+      const icon=icons[groupBy]||'📁';
+      const avgRating=groups[g].filter(l=>l.rating).reduce((s,l)=>s+l.rating,0)/groups[g].filter(l=>l.rating).length||0;
+      const totalReviews=groups[g].reduce((s,l)=>s+(l.reviews||0),0);
+      const noWebsite=groups[g].filter(l=>!l.website&&l.has_website!==1).length;
+      html+=`<tr><td colspan="11" style="background:${c}12;padding:10px 16px;font-weight:700;font-size:14px;border-left:4px solid ${c};letter-spacing:0.5px">
+        ${icon} ${g} <span style="font-weight:400;font-size:12px;color:var(--text3);margin-left:8px">${groups[g].length} leads</span>
+        ${avgRating?`<span style="font-size:11px;color:var(--yellow);margin-left:12px">⭐ ${avgRating.toFixed(1)}</span>`:''}
+        ${totalReviews?`<span style="font-size:11px;color:var(--text3);margin-left:6px">${totalReviews} reviews</span>`:''}
+        ${noWebsite?`<span style="font-size:11px;color:var(--green);margin-left:12px;font-weight:600">❌ ${noWebsite} no website</span>`:''}
+      </td></tr>`;
+      html+=renderLeadRows(groups[g]);
+    });
+    document.getElementById('leadsTable').innerHTML=html;
+  } else {
+    document.getElementById('leadsTable').innerHTML=renderLeadRows(f);
+  }
+}
+function renderLeadRows(leads){
+  return leads.length?leads.map(l=>`
+    <tr>
+      <td><input type="checkbox" class="lead-check" data-id="${l.id}" onchange="updateLeadSelectedCount()"></td>
+      <td>
+        <strong style="cursor:pointer;color:var(--primary)" onclick="showLeadDetail(${l.id})">${l.business_name}</strong>
+        ${l.owner_name?`<br><span style="font-size:11px;color:var(--text3)">👤 ${l.owner_name}</span>`:''}
+        ${l.notes?`<br><span style="font-size:10px;color:var(--text3);font-style:italic">📝 ${l.notes.substring(0,50)}${l.notes.length>50?'...':''}</span>`:''}
+      </td>
+      <td>
+        <div style="font-size:12px">${l.email||'—'}</div>
+        ${l.source?`<span style="font-size:10px;padding:2px 6px;border-radius:8px;background:var(--bg-tertiary);color:var(--text3)">${l.source}</span>`:''}
+      </td>
+      <td><span class="tag" style="background:var(--yellow)15;color:var(--yellow);font-size:11px">${l.niche||'—'}</span></td>
+      <td style="text-align:center">
+        ${l.rating?`<span style="color:var(--yellow)">⭐ ${l.rating}</span>`:'—'}
+        ${l.reviews?`<br><span style="font-size:10px;color:var(--text3)">${l.reviews} reviews</span>`:''}
+      </td>
+      <td>${l.phone?`<a href="tel:${l.phone}" style="color:var(--green);text-decoration:none;font-size:12px">📱 ${l.phone}</a>`:'—'}</td>
+      <td>${l.website?`<a href="${l.website}" target="_blank" style="color:var(--primary);text-decoration:none;font-size:11px;word-break:break-all">🌐 ${l.website.substring(0,30)}${l.website.length>30?'...':''}</a>`:'<span style="color:var(--green);font-size:11px;font-weight:600">❌ No Website</span>'}</td>
+      <td><span style="font-size:12px">📍 ${l.city||'—'}, ${l.state||''}</span></td>
+      <td><span class="tag tag-${l.status}" style="font-size:11px">${l.status.replace(/_/g,' ')}</span></td>
+      <td>${l.deal_value?`<span style="color:var(--green);font-weight:600">$${l.deal_value}</span>`:'—'}</td>
+      <td>
+        <div style="display:flex;gap:2px;flex-wrap:wrap">
+          <button class="btn btn-ghost btn-sm" onclick="showLeadDetail(${l.id})" title="Edit">✏️</button>
+          ${l.phone?`<button class="btn btn-ghost btn-sm" onclick="quickCall(${l.id},'${l.phone}')" title="AI Call">📞</button>`:''}
+          ${l.phone?`<a href="https://wa.me/${l.phone.replace(/[^0-9]/g,'')}" target="_blank" class="btn btn-ghost btn-sm" title="WhatsApp">💬</a>`:''}
+          <button class="btn btn-ghost btn-sm" onclick="deleteLead(${l.id})" title="Delete" style="color:var(--red)">🗑</button>
+        </div>
+      </td>
+    </tr>`).join(''):'<tr><td colspan="11" class="empty-state">No leads found</td></tr>';
+}
+
+// ========== LEAD DETAIL ==========
+async function showLeadDetail(id){
+  const lead=await api('/leads/'+id);
+  const reps=await api('/reps');
+  document.getElementById('detailTitle').textContent=lead.business_name;
+  document.getElementById('leadDetailContent').innerHTML=`
+    <div style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:14px;margin-bottom:20px">
+      <div><div style="font-size:11px;color:var(--text3);margin-bottom:4px">Owner</div><div style="font-size:14px">${lead.owner_name||'—'}</div></div>
+      <div><div style="font-size:11px;color:var(--text3);margin-bottom:4px">Phone</div><div style="font-size:14px">${lead.phone||'—'}</div></div>
+      <div><div style="font-size:11px;color:var(--text3);margin-bottom:4px">Email</div><div style="font-size:14px">${lead.email||'—'}</div></div>
+      <div><div style="font-size:11px;color:var(--text3);margin-bottom:4px">City</div><div style="font-size:14px">${lead.city||'—'} ${lead.state||''}</div></div>
+      <div><div style="font-size:11px;color:var(--text3);margin-bottom:4px">Niche</div><div style="font-size:14px">${lead.niche||'—'}</div></div>
+      <div><div style="font-size:11px;color:var(--text3);margin-bottom:4px">Status</div><span class="tag tag-${lead.status}">${lead.status.replace(/_/g,' ')}</span></div>
+    </div>
+    <div style="border-top:1px solid var(--border);padding-top:16px;margin-bottom:16px">
+      <h3 style="font-size:14px;margin-bottom:12px;color:var(--text2)">Update Lead</h3>
+      <div class="form-row">
+        <div class="form-group"><label>Status</label><select class="form-input" id="dStatus">${['new','contacted','demo_sent','meeting_booked','meeting_done','negotiation','closed_won','closed_lost'].map(s=>`<option value="${s}" ${lead.status===s?'selected':''}>${s.replace(/_/g,' ')}</option>`).join('')}</select></div>
+        <div class="form-group"><label>Assign To</label><select class="form-input" id="dAssigned"><option value="">Unassigned</option>${reps.map(r=>`<option value="${r.id}" ${lead.assigned_to==r.id?'selected':''}>${r.name}</option>`).join('')}</select></div>
+      </div>
+      <div class="form-row">
+        <div class="form-group"><label>Meeting Date</label><input type="date" class="form-input" id="dMeetingDate" value="${lead.meeting_date||''}"></div>
+        <div class="form-group"><label>Meeting Time</label><input type="time" class="form-input" id="dMeetingTime" value="${lead.meeting_time||''}"></div>
+      </div>
+      <div class="form-row">
+        <div class="form-group"><label>Follow-up Date</label><input type="date" class="form-input" id="dFollowup" value="${lead.followup_date||''}"></div>
+        <div class="form-group"><label>Deal Value ($)</label><input type="number" class="form-input" id="dDealValue" value="${lead.deal_value||''}"></div>
+      </div>
+      <div class="form-group"><label>Follow-up Note</label><input type="text" class="form-input" id="dFollowupNote" value="${lead.followup_note||''}" placeholder="Why follow up?"></div>
+      <div class="form-group"><label>Notes</label><textarea class="form-input" id="dNotes" rows="3">${lead.notes||''}</textarea></div>
+    </div>
+    <div style="display:flex;gap:8px;margin-bottom:20px">
+      <button class="btn btn-primary" onclick="updateLead(${lead.id})">💾 Save Changes</button>
+      ${lead.phone?`<button class="btn btn-green" onclick="quickCall(${lead.id},'${lead.phone}')">📞 AI Call</button>`:''}
+      ${lead.google_maps?`<a href="${lead.google_maps}" target="_blank" class="btn btn-outline">📍 Google Maps</a>`:''}
+      ${lead.website?`<a href="${lead.website}" target="_blank" class="btn btn-outline">🌐 Website</a>`:''}
+      <button class="btn btn-red btn-sm" onclick="deleteLead(${lead.id})" style="margin-left:auto">🗑 Delete</button>
+    </div>
+    ${lead.calls.length?`<div style="border-top:1px solid var(--border);padding-top:16px"><h3 style="font-size:14px;margin-bottom:8px;color:var(--text2)">Call History</h3>${lead.calls.map(c=>`<div style="font-size:12px;color:var(--text3);margin-bottom:4px">📞 ${c.called_at} · ${c.outcome} ${c.duration?'· '+c.duration+'s':''}</div>`).join('')}</div>`:''}
+    ${lead.activities.length?`<div style="border-top:1px solid var(--border);padding-top:16px;margin-top:16px"><h3 style="font-size:14px;margin-bottom:8px;color:var(--text2)">Recent Activity</h3>${lead.activities.slice(0,5).map(a=>`<div class="activity-item"><div class="activity-dot" style="background:${a.type==='call'?'var(--green)':a.type==='status_change'?'var(--yellow)':'var(--primary)'}"></div><div><div class="activity-text">${a.description}</div><div class="activity-time">${a.created_at}</div></div></div>`).join('')}</div>`:''}
+  `;
+  document.getElementById('leadDetailModal').classList.add('show');
+}
+
+async function updateLead(id){
+  await api('/leads/'+id,'PUT',{
+    status:document.getElementById('dStatus').value,
+    assigned_to:document.getElementById('dAssigned').value?parseInt(document.getElementById('dAssigned').value):null,
+    meeting_date:document.getElementById('dMeetingDate').value,
+    meeting_time:document.getElementById('dMeetingTime').value,
+    followup_date:document.getElementById('dFollowup').value,
+    deal_value:parseFloat(document.getElementById('dDealValue').value)||0,
+    followup_note:document.getElementById('dFollowupNote').value,
+    notes:document.getElementById('dNotes').value
+  });
+  closeModal('leadDetailModal');
+  loadPage(document.querySelector('.nav-item.active').dataset.page);
+}
+
+async function deleteLead(id){
+  if(!confirm('Delete this lead?'))return;
+  await api('/leads/'+id,'DELETE');
+  closeModal('leadDetailModal');
+  loadPage(document.querySelector('.nav-item.active').dataset.page);
+}
+
+let leadSelectedIds = new Set();
+function updateLeadSelectedCount(){
+  leadSelectedIds.clear();
+  document.querySelectorAll('.lead-check:checked').forEach(cb => leadSelectedIds.add(parseInt(cb.dataset.id)));
+  document.getElementById('leadSelectedCount').textContent = leadSelectedIds.size;
+}
+function toggleLeadSelectAll(){
+  const checked = document.getElementById('leadSelectAll')?.checked || document.getElementById('leadTableCheckAll')?.checked;
+  document.querySelectorAll('.lead-check').forEach(cb => { cb.checked = checked; });
+  updateLeadSelectedCount();
+  if(document.getElementById('leadSelectAll')) document.getElementById('leadSelectAll').checked = checked;
+  if(document.getElementById('leadTableCheckAll')) document.getElementById('leadTableCheckAll').checked = checked;
+}
+async function deleteSelectedLeads(){
+  if(leadSelectedIds.size===0){alert('Select leads first');return;}
+  if(!confirm(`Delete ${leadSelectedIds.size} leads?`))return;
+  for(const id of leadSelectedIds){await api('/leads/'+id,'DELETE');}
+  leadSelectedIds.clear();
+  loadLeads();
+}
+
+// ========== ADD LEAD ==========
+function showAddLeadModal(){document.getElementById('addLeadModal').classList.add('show')}
+async function addLead(){
+  const bn=document.getElementById('fBizName').value, on=document.getElementById('fOwnerName').value;
+  if(!bn||!on){alert('Business name and owner name required');return}
+  await api('/leads','POST',{
+    business_name:bn,owner_name:on,phone:document.getElementById('fPhone').value,
+    email:document.getElementById('fEmail').value,city:document.getElementById('fCity').value,
+    state:document.getElementById('fState').value,niche:document.getElementById('fNiche').value,
+    website:document.getElementById('fWebsite').value,notes:document.getElementById('fNotes').value
+  });
+  closeModal('addLeadModal');
+  ['fBizName','fOwnerName','fPhone','fEmail','fCity','fState','fWebsite','fNotes'].forEach(x=>document.getElementById(x).value='');
+  loadPage(document.querySelector('.nav-item.active').dataset.page);
+}
+
+// ========== IMPORT ==========
+function showImportModal(){document.getElementById('importModal').classList.add('show')}
+async function importLeads(){
+  const raw=document.getElementById('importData').value.trim();
+  if(!raw){alert('Paste CSV data');return}
+  const lines=raw.split('\n').filter(l=>l.trim());
+  const leads=lines.map(l=>{const p=l.split(',');return{business_name:p[0]?.trim(),owner_name:p[1]?.trim(),phone:p[2]?.trim(),email:p[3]?.trim(),city:p[4]?.trim(),state:p[5]?.trim(),niche:p[6]?.trim()}});
+  await api('/leads/bulk','POST',{leads});
+  closeModal('importModal');
+  document.getElementById('importData').value='';
+  loadLeads();
+}
+
+// ========== AI CALLING ==========
+async function loadCalls(){
+  const leads=await api('/leads?limit=50');
+  document.getElementById('callLeadSelect').innerHTML='<option value="">Select lead...</option>'+leads.filter(l=>l.phone).map(l=>`<option value="${l.id}" data-phone="${l.phone}">${l.business_name} - ${l.phone}</option>`).join('');
+  const calls=await api('/calls?limit=20');
+  document.getElementById('callHistory').innerHTML=calls.length?calls.map(c=>`
+    <div class="followup-item">
+      <div><strong>${c.business_name||'Unknown'}</strong><br><span style="font-size:11px;color:var(--text3)">${c.called_at} · ${c.outcome}</span></div>
+    </div>`).join(''):'<div class="empty-state"><p>No calls yet</p></div>';
+}
+
+function quickCall(id,phone){
+  showPage('calls');
+  setTimeout(()=>{document.getElementById('callLeadSelect').value=id;document.getElementById('callLeadSelect').dispatchEvent(new Event('change'))},300);
+}
+
+async function startAICall(){
+  const sel=document.getElementById('callLeadSelect');
+  const leadId=sel.value, phone=sel.options[sel.selectedIndex]?.dataset.phone;
+  if(!leadId||!phone){alert('Select a lead with phone');return}
+  document.getElementById('callOrb').classList.add('active');
+  document.getElementById('callStatus').textContent='📞 Calling '+phone+'...';
+  const res=await api('/call','POST',{phone_number:phone,lead_id:parseInt(leadId)});
+  if(res.success){document.getElementById('callStatus').textContent='✅ Call started! ID: '+res.call_id;loadCalls()}
+  else{document.getElementById('callStatus').textContent='❌ '+(res.error||'Failed');document.getElementById('callOrb').classList.remove('active')}
+}
+function endCall(){document.getElementById('callOrb').classList.remove('active');document.getElementById('callStatus').textContent='Call ended'}
+
+// ========== MEETINGS ==========
+async function loadMeetings(){
+  const m=await api('/meetings');
+  document.getElementById('navMeetingsBadge').textContent=m.filter(x=>x.meeting_date===new Date().toISOString().split('T')[0]).length;
+  if(!m.length){document.getElementById('meetingsList').innerHTML='<div class="empty-state"><div class="empty-icon">📅</div><p>No meetings scheduled</p></div>';return}
+  document.getElementById('meetingsList').innerHTML=m.map(l=>`
+    <div class="followup-item today">
+      <div style="display:flex;align-items:center;gap:12px">
+        ${l.rep_name?`<div class="mini-avatar" style="background:${l.rep_color||'var(--primary)'};width:32px;height:32px;font-size:12px">${l.rep_name.charAt(0)}</div>`:''}
+        <div><strong>${l.business_name}</strong> · <span class="tag tag-${l.status}">${l.status.replace(/_/g,' ')}</span><br><span style="font-size:12px;color:var(--text3)">📅 ${l.meeting_date} ${l.meeting_time||''} · 👤 ${l.owner_name} · 📱 ${l.phone||''}</span></div>
+      </div>
+      <div style="display:flex;gap:4px">
+        <button class="btn btn-green btn-sm" onclick="markMeetingDone(${l.id})">✅ Done</button>
+        <button class="btn btn-outline btn-sm" onclick="showLeadDetail(${l.id})">✏️</button>
+      </div>
+    </div>`).join('');
+}
+async function markMeetingDone(id){
+  const v=prompt('Deal value ($):','1200');
+  if(v!==null){await api('/leads/'+id,'PUT',{status:'meeting_done',deal_value:parseFloat(v)||0});loadMeetings();loadDashboard()}
+}
+
+// ========== FOLLOW-UPS ==========
+async function loadFollowups(){
+  const today=new Date().toISOString().split('T')[0];
+  const f=await api('/followups?date='+today);
+  document.getElementById('navFollowupsBadge').textContent=f.filter(x=>x.followup_date<=today).length;
+  if(!f.length){document.getElementById('followupsList').innerHTML='<div class="empty-state"><div class="empty-icon">🔔</div><p>No follow-ups scheduled</p></div>';return}
+  document.getElementById('followupsList').innerHTML=f.map(l=>{
+    const cls=l.followup_date<today?'overdue':l.followup_date===today?'today':'upcoming';
+    return`<div class="followup-item ${cls}">
+      <div><strong>${l.business_name}</strong> <span class="tag tag-${l.status}">${l.status.replace(/_/g,' ')}</span><br><span style="font-size:12px;color:var(--text3)">📅 Follow-up: ${l.followup_date} ${l.followup_time||''} · 👤 ${l.owner_name}</span>${l.followup_note?`<br><span style="font-size:11px;color:var(--yellow)">📝 ${l.followup_note}</span>`:''}</div>
+      <div style="display:flex;gap:4px"><button class="btn btn-outline btn-sm" onclick="showLeadDetail(${l.id})">✏️</button><button class="btn btn-green btn-sm" onclick="completeFollowup(${l.id})">✅ Done</button></div>
+    </div>`;
+  }).join('');
+}
+async function completeFollowup(id){await api('/leads/'+id,'PUT',{followup_date:'',followup_note:''});loadFollowups()}
+
+// ========== REPS ==========
+async function loadReps(){
+  const reps=await api('/reps');allReps=reps;
+  document.getElementById('repsGrid').innerHTML=reps.length?reps.map(r=>`
+    <div class="card">
+      <div style="display:flex;align-items:center;gap:14px;margin-bottom:16px">
+        <div class="mini-avatar" style="background:${r.avatar_color};width:48px;height:48px;font-size:18px;border-radius:14px">${r.name.charAt(0)}</div>
+        <div><div style="font-size:16px;font-weight:700">${r.name}</div><div style="font-size:12px;color:var(--text3)">${r.role}</div></div>
+      </div>
+      <div style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:12px;text-align:center;margin-bottom:16px">
+        <div><div style="font-size:20px;font-weight:700">${r.assigned_leads}</div><div style="font-size:10px;color:var(--text3)">Assigned</div></div>
+        <div><div style="font-size:20px;font-weight:700;color:var(--green)">${r.closed_deals}</div><div style="font-size:10px;color:var(--text3)">Closed</div></div>
+        <div><div style="font-size:20px;font-weight:700;color:var(--green)">$${r.revenue.toLocaleString()}</div><div style="font-size:10px;color:var(--text3)">Revenue</div></div>
+      </div>
+      <div style="display:flex;gap:6px;font-size:12px;color:var(--text3);margin-top:8px;padding-top:8px;border-top:1px solid var(--border)">
+        <span>📧 ${r.email||'—'}</span><span style="margin-left:auto">📱 ${r.phone||'—'}</span>
+      </div>
+    </div>`).join(''):'<div class="empty-state" style="grid-column:1/-1"><div class="empty-icon">👤</div><p>No sales reps yet</p></div>';
+}
+function showAddRepModal(){document.getElementById('addRepModal').classList.add('show')}
+async function addRep(){
+  const n=document.getElementById('fRepName').value;if(!n){alert('Name required');return}
+  await api('/reps','POST',{name:n,email:document.getElementById('fRepEmail').value,phone:document.getElementById('fRepPhone').value,role:document.getElementById('fRepRole').value});
+  closeModal('addRepModal');loadReps();
+}
+
+// ========== ACTIVITY ==========
+async function loadActivity(){
+  const a=await api('/activities?limit=50');
+  document.getElementById('activityFeed').innerHTML=a.length?a.map(x=>`
+    <div class="activity-item">
+      <div class="activity-dot" style="background:${x.type==='call'?'var(--green)':x.type==='status_change'?'var(--yellow)':x.type==='assigned'?'var(--purple)':x.type==='created'?'var(--blue)':'var(--text3)'}"></div>
+      <div style="flex:1"><div class="activity-text"><strong>${x.business_name||'System'}</strong> — ${x.description}</div><div class="activity-time">${x.created_at}</div></div>
+    </div>`).join(''):'<div class="empty-state"><div class="empty-icon">📝</div><p>No activity yet</p></div>';
+}
+
+// ========== SETTINGS ==========
+async function loadSettings(){
+  const s=await api('/settings');
+  if(s.bland_api_key)document.getElementById('blandApiKey').value=s.bland_api_key;
+  if(s.bland_agent_id)document.getElementById('blandAgentId').value=s.bland_agent_id;
+  if(s.google_api_key)document.getElementById('googleApiKey').value=s.google_api_key;
+  loadUsers();
+}
+
+async function loadUsers() {
+  try {
+    const users = await api('/auth/users');
+    document.getElementById('usersList').innerHTML = users.map(u => `
+      <div style="display:flex;align-items:center;gap:12px;padding:10px;border:1px solid var(--border);border-radius:8px;margin-bottom:8px">
+        <div class="mini-avatar" style="background:${u.role==='admin'?'var(--primary)':'var(--green)'}">${u.name.charAt(0)}</div>
+        <div style="flex:1">
+          <div style="font-size:13px;font-weight:600">${u.name}</div>
+          <div style="font-size:11px;color:var(--text3)">@${u.username} · ${u.role}</div>
+        </div>
+        <span style="font-size:11px;padding:2px 8px;border-radius:8px;background:${u.active?'var(--green)15;color:var(--green)':'var(--red)15;color:var(--red)'}">${u.active?'Active':'Inactive'}</span>
+        ${u.username!=='admin'?`<button class="btn btn-ghost btn-sm" onclick="deactivateUser(${u.id})" style="color:var(--red)">🗑</button>`:''}
+      </div>
+    `).join('');
+  } catch(e) {}
+}
+
+async function addUser() {
+  const username = document.getElementById('newUsername').value;
+  const password = document.getElementById('newPassword').value;
+  const name = document.getElementById('newName').value;
+  const role = document.getElementById('newRole').value;
+  if (!username || !password || !name) { alert('Fill all fields'); return; }
+  try {
+    await api('/auth/register', 'POST', { username, password, name, role });
+    document.getElementById('newUsername').value = '';
+    document.getElementById('newPassword').value = '';
+    document.getElementById('newName').value = '';
+    loadUsers();
+  } catch(e) { alert(e.message); }
+}
+
+async function deactivateUser(id) {
+  if (!confirm('Deactivate this user?')) return;
+  await api('/auth/users/' + id, 'DELETE');
+  loadUsers();
+}
+
+async function saveSettings(){
+  await api('/settings','PUT',{
+    bland_api_key:document.getElementById('blandApiKey').value,
+    bland_agent_id:document.getElementById('blandAgentId').value,
+    google_api_key:document.getElementById('googleApiKey').value
+  });
+  alert('Settings saved!');
+}
+
+// ========== LEAD FINDER ==========
+let finderLeads = [];
+let finderSelected = new Set();
+
+function updateState() {
+  const citySelect = document.getElementById('finderCity');
+  const stateInput = document.getElementById('finderState');
+  const selected = citySelect.options[citySelect.selectedIndex];
+  if (selected && selected.dataset.state) {
+    stateInput.value = selected.dataset.state;
+  }
+}
+
+async function searchLeads() {
+  const niche = document.getElementById('finderNiche').value;
+  const city = document.getElementById('finderCity').value;
+  const state = document.getElementById('finderState').value;
+  
+  if (!city) { alert('Enter a city'); return; }
+  
+  document.getElementById('finderDemoBtn').disabled = true;
+  document.getElementById('finderDemoBtn').textContent = '⏳ Loading...';
+  
+  try {
+    const res = await api(`/finder/search?niche=${encodeURIComponent(niche)}&city=${encodeURIComponent(city)}&state=${encodeURIComponent(state)}`);
+    finderLeads = res.leads || [];
+    finderSelected = new Set();
+    
+    document.getElementById('finderResults').style.display = 'block';
+    document.getElementById('finderEmpty').style.display = 'none';
+    document.getElementById('finderCount').textContent = finderLeads.length;
+    document.getElementById('finderMessage').textContent = res.message || `Found ${finderLeads.length} businesses (Demo Mode)`;
+    
+    renderFinderLeads(finderLeads);
+  } catch (err) {
+    alert('Search failed: ' + err.message);
+  }
+  
+  document.getElementById('finderDemoBtn').disabled = false;
+  document.getElementById('finderDemoBtn').textContent = '📊 Demo';
+}
+
+async function runMultiNicheScrape() {
+  const niches = Array.from(document.querySelectorAll('.niche-check:checked')).map(c => c.value);
+  const city = document.getElementById('finderCity').value;
+  const state = document.getElementById('finderState').value;
+  const goalType = document.getElementById('finderGoalType').value;
+  const goalCount = parseInt(document.getElementById('finderMax').value) || 50;
+  
+  if (!city) { alert('Select a city'); return; }
+  if (niches.length === 0) { alert('Select at least one niche'); return; }
+  
+  document.getElementById('finderSearchBtn').disabled = true;
+  document.getElementById('finderSearchBtn').textContent = '⏳ Scraping...';
+  
+  finderLeads = [];
+  finderSelected = new Set();
+  document.getElementById('finderResults').style.display = 'block';
+  document.getElementById('finderEmpty').style.display = 'block';
+  
+  const goalLabel = goalType === 'no_website' ? 'No Website' : goalType === 'outdated' ? 'Outdated' : 'All';
+  
+  for (let ni = 0; ni < niches.length; ni++) {
+    const niche = niches[ni];
+    document.getElementById('finderMessage').innerHTML = `<b>Scraping ${ni+1}/${niches.length}: ${niche}</b> — Goal: ${goalCount} ${goalLabel} leads...`;
+    
+    try {
+      await api('/scraper/run', 'POST', { niche, city, state, max_results: goalCount * 3, headless: true, goalType, goalCount });
+      
+      let attempts = 0;
+      while (attempts < 300) {
+        await new Promise(r => setTimeout(r, 3000));
+        attempts++;
+        const elapsed = Math.round(attempts * 3);
+        
+        const status = await api('/scraper/status');
+        if (status.status === 'done') {
+          finderLeads = status.leads || [];
+          document.getElementById('finderCount').textContent = finderLeads.length;
+          document.getElementById('finderEmpty').style.display = 'none';
+          
+          const noWeb = finderLeads.filter(l => !l.has_website).length;
+          const outdated = finderLeads.filter(l => l.website_analysis?.is_outdated).length;
+          document.getElementById('finderMessage').innerHTML = `✅ <b>${niche}</b> done (${elapsed}s) — Total: ${finderLeads.length} | <span style="color:var(--green)">${noWeb} no website</span> | <span style="color:var(--yellow)">${outdated} outdated</span>`;
+          renderFinderLeads(finderLeads);
+          break;
+        }
+        if (status.status === 'error') {
+          document.getElementById('finderMessage').innerHTML = `❌ ${niche} failed: ${status.error}`;
+          break;
+        }
+        
+        // Show progress
+        const current = status.leads ? status.leads.length : 0;
+        document.getElementById('finderMessage').innerHTML = `<b>${niche}</b> (${ni+1}/${niches.length}) — ${elapsed}s — ${current} leads found so far...`;
+      }
+    } catch(e) {
+      document.getElementById('finderMessage').innerHTML = `❌ ${niche} error: ${e.message}`;
+    }
+    
+    if (ni < niches.length - 1) await new Promise(r => setTimeout(r, 2000));
+  }
+  
+  document.getElementById('finderSearchBtn').disabled = false;
+  document.getElementById('finderSearchBtn').textContent = '🔍 Scrape Selected';
+  
+  const noWeb = finderLeads.filter(l => !l.has_website).length;
+  const outdated = finderLeads.filter(l => l.website_analysis?.is_outdated).length;
+  document.getElementById('finderMessage').innerHTML = `✅ All done! <b>${finderLeads.length}</b> total | <span style="color:var(--green)">${noWeb} no website</span> | <span style="color:var(--yellow)">${outdated} outdated</span>`;
+  renderFinderLeads(finderLeads);
+}
+
+function renderFinderLeads(leads) {
+  document.getElementById('finderList').innerHTML = leads.map((l, i) => {
+    const isHighValue = l.has_website && (l.reviews || 0) >= 20 && l.website_analysis?.is_outdated;
+    const isNoWebsite = !l.has_website;
+    const cat = isNoWebsite ? 'hot' : isHighValue ? 'warm' : (l.reviews || 0) >= 20 ? 'warm' : 'skip';
+    const catColors = {hot:'var(--green)',warm:'var(--yellow)',skip:'var(--text3)'};
+    const catLabels = {hot:'🔥 PERFECT',warm:'⭐ HIGH VALUE',skip:'📋 STANDARD'};
+    
+    return `
+    <div class="followup-item ${isNoWebsite ? 'today' : isHighValue ? 'upcoming' : ''}" style="cursor:pointer;border-left:3px solid ${catColors[cat]}" onclick="toggleFinderSelect(${i})">
+      <div style="display:flex;align-items:center;gap:12px">
+        <input type="checkbox" id="finderCheck${i}" ${finderSelected.has(i)?'checked':''} style="width:18px;height:18px;cursor:pointer">
+        <div style="flex:1">
+          <div style="display:flex;align-items:center;gap:8px">
+            <strong>${l.business_name}</strong>
+            ${l.already_saved ? '<span style="font-size:10px;padding:2px 6px;border-radius:10px;background:var(--text3)20;color:var(--text3);font-weight:600">✅ SAVED</span>' : ''}
+            <span style="font-size:10px;padding:2px 8px;border-radius:10px;background:${catColors[cat]}20;color:${catColors[cat]};font-weight:600">${catLabels[cat]}</span>
+            ${l.website_analysis?.is_outdated ? '<span style="font-size:10px;padding:2px 6px;border-radius:10px;background:var(--red)20;color:var(--red);font-weight:600">OUTDATED</span>' : ''}
+          </div>
+          <div style="font-size:12px;color:var(--text3);margin-top:2px">
+            📱 ${l.phone || 'No phone'} · ⭐ ${l.rating || '-'} (${l.reviews || 0} reviews) · 📍 ${l.city}, ${l.state}
+          </div>
+          <div style="font-size:11px;margin-top:4px">
+            ${l.has_website 
+              ? `<span style="color:var(--yellow)">⚠️ Website: ${l.website}</span>` 
+              : `<span style="color:var(--green)">✅ NO WEBSITE - Perfect target!</span>`}
+          </div>
+          ${l.website_analysis?.grade ? `<div style="font-size:10px;color:var(--text3);margin-top:2px">Grade: <b>${l.website_analysis.grade}</b> ${l.website_analysis.score || ''}/100</div>` : ''}
+        </div>
+      </div>
+      <div style="display:flex;gap:4px;flex-shrink:0">
+        ${l.maps_url ? `<a href="${l.maps_url}" target="_blank" class="btn btn-outline btn-sm" onclick="event.stopPropagation()" style="text-decoration:none">📍 Map</a>` : (l.lat && l.lng ? `<a href="https://www.google.com/maps?q=${l.lat},${l.lng}" target="_blank" class="btn btn-outline btn-sm" onclick="event.stopPropagation()" style="text-decoration:none">📍 Map</a>` : '')}
+        <button class="btn btn-green btn-sm" onclick="event.stopPropagation();addFinderToLeads(${i})">+ Add</button>
+      </div>
+    </div>
+  `}).join('') || '<div class="empty-state"><p>No results found</p></div>';
+}
+
+function toggleFinderSelect(i) {
+  const checkbox = document.getElementById('finderCheck' + i);
+  if (finderSelected.has(i)) {
+    finderSelected.delete(i);
+    checkbox.checked = false;
+  } else {
+    finderSelected.add(i);
+    checkbox.checked = true;
+  }
+  document.getElementById('selectedCount').textContent = finderSelected.size;
+}
+
+function toggleSelectAll() {
+  const selectAll = document.getElementById('finderSelectAll').checked;
+  const visibleLeads = document.querySelectorAll('[id^="finderCheck"]');
+  visibleLeads.forEach(cb => {
+    const i = parseInt(cb.id.replace('finderCheck', ''));
+    if (selectAll) {
+      finderSelected.add(i);
+      cb.checked = true;
+    } else {
+      finderSelected.delete(i);
+      cb.checked = false;
+    }
+  });
+  document.getElementById('selectedCount').textContent = finderSelected.size;
+}
+
+function toggleFinderMap() {
+  const mapDiv = document.getElementById('finderMap');
+  if (mapDiv.style.display === 'none' || !mapDiv.style.display) {
+    mapDiv.style.display = 'block';
+    mapDiv.style.height = '400px';
+    const validLeads = finderLeads.filter(l => l.lat && l.lng);
+    if (validLeads.length === 0) { alert('No leads with location data'); return; }
+    requestAnimationFrame(() => {
+      requestAnimationFrame(() => {
+        if (window.finderMap) { window.finderMap.remove(); window.finderMap = null; }
+        window.finderMap = L.map('finderMap').setView([validLeads[0].lat, validLeads[0].lng], 11);
+        L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', { attribution: '© OpenStreetMap' }).addTo(window.finderMap);
+        validLeads.forEach((l) => {
+          const cat = l.category || (l.has_website ? 'skip' : 'hot');
+          const colors = {hot:'#ef4444',warm:'#eab308',cold:'#3b82f6',skip:'#6b7280'};
+          const marker = L.circleMarker([l.lat, l.lng], { radius: 8, fillColor: colors[cat] || '#6b7280', color: '#fff', weight: 2, fillOpacity: 0.9 }).addTo(window.finderMap);
+          marker.bindPopup(`<b>${l.business_name}</b><br>${l.phone || 'No phone'}<br>${l.website || 'No website'}<br>⭐ ${l.rating || '-'} (${l.reviews || 0})`);
+        });
+        window.finderMap.invalidateSize();
+      });
+    });
+  } else {
+    mapDiv.style.display = 'none';
+  }
+}
+
+function toggleLeadsMap() {
+  const container = document.getElementById('leadsMapContainer');
+  if (container.style.display === 'none' || !container.style.display) {
+    container.style.display = 'block';
+    const validLeads = allLeads.filter(l => l.latitude && l.longitude);
+    if (validLeads.length === 0) { alert('No leads with location data'); container.style.display = 'none'; return; }
+    requestAnimationFrame(() => {
+      requestAnimationFrame(() => {
+        if (window.leadsMap) { window.leadsMap.remove(); window.leadsMap = null; }
+        window.leadsMap = L.map('leadsMap').setView([validLeads[0].latitude, validLeads[0].longitude], 10);
+        L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', { attribution: '© OpenStreetMap' }).addTo(window.leadsMap);
+        validLeads.forEach(l => {
+          const colors = {new:'#3b82f6',contacted:'#eab308',demo_sent:'#22c55e',meeting_booked:'#a855f7',meeting_done:'#06b6d4',negotiation:'#f97316',closed_won:'#22c55e',closed_lost:'#ef4444'};
+          const marker = L.circleMarker([l.latitude, l.longitude], { radius: 8, fillColor: colors[l.status] || '#6b7280', color: '#fff', weight: 2, fillOpacity: 0.9 }).addTo(window.leadsMap);
+          marker.on('click', () => {
+            window.open(`https://www.google.com/maps?q=${l.latitude},${l.longitude}`, '_blank');
+          });
+          marker.bindTooltip(`${l.business_name} - ${l.city || ''}`, { direction: 'top', offset: [0, -10] });
+        });
+        window.leadsMap.invalidateSize();
+      });
+    });
+  } else {
+    container.style.display = 'none';
+  }
+}
+
+function filterFinder(filter) {
+  let filtered = finderLeads;
+  if (filter === 'new_only') filtered = finderLeads.filter(l => !l.already_saved);
+  if (filter === 'no_website') filtered = finderLeads.filter(l => !l.has_website);
+  if (filter === 'outdated') filtered = finderLeads.filter(l => l.has_website && l.website_analysis?.is_outdated);
+  if (filter === 'high_value') filtered = finderLeads.filter(l => l.has_website && (l.reviews || 0) >= 20 && l.website_analysis?.is_outdated);
+  document.getElementById('finderCount').textContent = filtered.length;
+  renderFinderLeads(filtered);
+}
+
+async function analyzeWebsites() {
+  const btn = document.getElementById('analyzeBtn');
+  btn.disabled = true;
+  btn.textContent = '🔬 Analyzing...';
+  
+  const withWebsite = finderLeads.filter(l => l.has_website && !l.website_analysis);
+  let done = 0;
+  
+  for (const lead of withWebsite) {
+    try {
+      const result = await api('/scraper/analyze', 'POST', { url: lead.website });
+      lead.website_analysis = result;
+      done++;
+      document.getElementById('finderMessage').innerHTML = `🔬 Analyzed ${done}/${withWebsite.length} websites...`;
+    } catch(e) {
+      lead.website_analysis = { is_outdated: false, error: e.message };
+      done++;
+    }
+  }
+  
+  btn.disabled = false;
+  btn.textContent = '🔬 Analyze Sites';
+  
+  const outdated = finderLeads.filter(l => l.website_analysis?.is_outdated).length;
+  const highValue = finderLeads.filter(l => l.has_website && (l.reviews || 0) >= 20 && l.website_analysis?.is_outdated).length;
+  document.getElementById('finderMessage').innerHTML = `✅ Analysis complete! <span style="color:var(--yellow)">${outdated} outdated</span> | <span style="color:var(--green)">${highValue} high value</span>`;
+  renderFinderLeads(finderLeads);
+}
+
+async function addFinderToLeads(i) {
+  const l = finderLeads[i];
+  await api('/leads', 'POST', {
+    business_name: l.business_name,
+    phone: l.phone,
+    website: l.website,
+    city: l.city,
+    state: l.state,
+    niche: l.niche,
+    rating: parseFloat(l.rating) || 0,
+    reviews: l.reviews || 0,
+    source: 'finder',
+    notes: (l.has_website ? `Has website: ${l.website} - May need rebuild` : 'No website - needs one') + (l.google_maps ? `\nGoogle Maps: ${l.google_maps}` : '')
+  });
+  alert(`${l.business_name} added to leads!`);
+}
+
+async function addSelectedToLeads() {
+  if (finderSelected.size === 0) { alert('Select leads first'); return; }
+  
+  let count = 0;
+  for (const i of finderSelected) {
+    const l = finderLeads[i];
+    if (l.already_saved) continue;
+    await api('/leads', 'POST', {
+      business_name: l.business_name,
+      phone: l.phone,
+      website: l.website,
+      city: l.city,
+      state: l.state,
+      niche: l.niche,
+      rating: parseFloat(l.rating) || 0,
+      reviews: l.reviews || 0,
+      source: 'finder',
+      has_website: l.has_website,
+      latitude: l.lat || null,
+      longitude: l.lng || null,
+      notes: (l.has_website ? `Has website: ${l.website} - May need rebuild` : 'No website - needs one')
+    });
+    l.already_saved = true;
+    count++;
+  }
+  
+  alert(`${count} leads added to pipeline!`);
+  finderSelected = new Set();
+  document.getElementById('selectedCount').textContent = '0';
+  renderFinderLeads(finderLeads);
+}
+
+async function addAllToLeads() {
+  const notSaved = finderLeads.filter(l => !l.already_saved);
+  if (notSaved.length === 0) { alert('All leads already saved!'); return; }
+  if (!confirm(`Add ${notSaved.length} leads to pipeline?`)) return;
+  
+  let count = 0;
+  for (const l of notSaved) {
+    await api('/leads', 'POST', {
+      business_name: l.business_name,
+      phone: l.phone,
+      website: l.website,
+      city: l.city,
+      state: l.state,
+      niche: l.niche,
+      rating: parseFloat(l.rating) || 0,
+      reviews: l.reviews || 0,
+      source: 'finder',
+      has_website: l.has_website,
+      latitude: l.lat || null,
+      longitude: l.lng || null,
+      notes: (l.has_website ? `Has website: ${l.website} - May need rebuild` : 'No website - needs one')
+    });
+    l.already_saved = true;
+    count++;
+  }
+  
+  alert(`${count} leads added to pipeline!`);
+  finderSelected = new Set();
+  document.getElementById('selectedCount').textContent = '0';
+  renderFinderLeads(finderLeads);
+}
+
+async function analyzeWebsite(url) {
+  try {
+    const res = await api(`/finder/analyze?url=${encodeURIComponent(url)}`);
+    alert(`Website Analysis:\n\nScore: ${res.score}/100 (${res.grade})\n\n${res.issues.map(i => `• ${i.message}`).join('\n')}\n\nRecommendation: ${res.recommendation}`);
+  } catch (err) {
+    alert('Analysis failed: ' + err.message);
+  }
+}
+
+// ========== SETTINGS ==========
+
+// ========== INIT ==========
+loadDashboard();
+</script>
+</div><!-- end appContainer -->
+</body>
+</html>

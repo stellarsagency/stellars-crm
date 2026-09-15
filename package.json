@@ -1,0 +1,20 @@
+{
+  "name": "stellars-crm",
+  "version": "2.0.0",
+  "description": "AI Cold Calling CRM Dashboard",
+  "main": "server.js",
+  "scripts": {
+    "start": "node server.js",
+    "dev": "node server.js"
+  },
+  "keywords": [],
+  "author": "",
+  "license": "ISC",
+  "type": "commonjs",
+  "dependencies": {
+    "cors": "^2.8.5",
+    "express": "^4.21.2",
+    "playwright": "^1.62.1",
+    "sql.js": "^1.11.0"
+  }
+}
