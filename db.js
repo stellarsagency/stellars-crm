@@ -9,10 +9,15 @@ let db = null;
 async function initDB() {
   const SQL = await initSqlJs();
   
-  if (fs.existsSync(DB_PATH)) {
-    const buf = fs.readFileSync(DB_PATH);
-    db = new SQL.Database(buf);
-  } else {
+  try {
+    if (fs.existsSync(DB_PATH)) {
+      const buf = fs.readFileSync(DB_PATH);
+      db = new SQL.Database(buf);
+    } else {
+      db = new SQL.Database();
+    }
+  } catch(e) {
+    console.error('DB load failed, using in-memory:', e.message);
     db = new SQL.Database();
   }
 
@@ -137,9 +142,13 @@ async function initDB() {
 
 function saveDB() {
   if (!db) return;
-  const data = db.export();
-  const buffer = Buffer.from(data);
-  fs.writeFileSync(DB_PATH, buffer);
+  try {
+    const data = db.export();
+    const buffer = Buffer.from(data);
+    fs.writeFileSync(DB_PATH, buffer);
+  } catch(e) {
+    console.error('saveDB failed:', e.message);
+  }
 }
 
 function queryAll(sql, params = []) {
