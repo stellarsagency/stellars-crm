@@ -1,13 +1,13 @@
 const https = require('https');
 
-function httpPost(url, body) {
+function httpPost(url, body, contentType = 'application/x-www-form-urlencoded') {
   return new Promise((resolve, reject) => {
     const urlObj = new URL(url);
     const options = {
       hostname: urlObj.hostname,
       path: urlObj.pathname + urlObj.search,
       method: 'POST',
-      headers: { 'Content-Type': 'application/json', 'Content-Length': Buffer.byteLength(body) }
+      headers: { 'Content-Type': contentType, 'Content-Length': Buffer.byteLength(body) }
     };
     const req = https.request(options, (res) => {
       let data = '';
@@ -69,7 +69,7 @@ async function scrapeGoogleMaps(niche, location, maxResults = 25) {
       console.log(`  No coords for "${location}", using search`);
       // Fallback: search by city name in Overpass
       const query = `[out:json][timeout:25];area[name="${location.split(',')[0]}"]->.a;(node["name"](area.a);way["name"](area.a););out body;`;
-      const body = JSON.stringify({ data: query });
+      const body = `data=${encodeURIComponent(query)}`;
       const url = `https://overpass-api.de/api/interpreter`;
       const data = await httpPost(url, body);
       const parsed = JSON.parse(data);
@@ -117,7 +117,7 @@ out body;
 out skel qt;`;
 
     console.log(`  Overpass query for ${niche} in ${location} (${lat},${lon})`);
-    const body = JSON.stringify({ data: query });
+    const body = `data=${encodeURIComponent(query)}`;
     const url = `https://overpass-api.de/api/interpreter`;
     const data = await httpPost(url, body);
     const parsed = JSON.parse(data);

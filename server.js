@@ -399,12 +399,26 @@ async function start() {
     res.json({ status: 'started' });
 
     // Resolve city lists
-    const allStateLists = {
+    const allCityLists = {
       '__whole_usa': ['Houston, TX', 'Dallas, TX', 'San Antonio, TX', 'Austin, TX', 'Fort Worth, TX', 'Atlanta, GA', 'Savannah, GA', 'Miami, FL', 'Tampa, FL', 'Orlando, FL', 'Jacksonville, FL', 'New York, NY', 'Buffalo, NY', 'Phoenix, AZ', 'Tucson, AZ', 'Charlotte, NC', 'Raleigh, NC', 'Nashville, TN', 'Knoxville, TN', 'Los Angeles, CA', 'San Diego, CA', 'Las Vegas, NV', 'Chicago, IL', 'Columbus, OH', 'Cleveland, OH', 'Indianapolis, IN', 'Seattle, WA', 'Portland, OR', 'Denver, CO', 'Kansas City, MO', 'Oklahoma City, OK', 'Birmingham, AL', 'Louisville, KY', 'Memphis, TN', 'New Orleans, LA', 'Pittsburgh, PA', 'Philadelphia, PA', 'Baltimore, MD', 'Richmond, VA'],
+      '__state_tx': ['Houston, TX', 'Dallas, TX', 'San Antonio, TX', 'Austin, TX', 'Fort Worth, TX', 'El Paso, TX', 'Arlington, TX', 'Corpus Christi, TX', 'Plano, TX', 'Lubbock, TX', 'Laredo, TX', 'Irving, TX', 'Garland, TX', 'Amarillo, TX', 'Grand Prairie, TX', 'Brownsville, TX', 'McKinney, TX', 'Frisco, TX', 'Pasadena, TX', 'Mesquite, TX'],
+      '__state_ga': ['Atlanta, GA', 'Augusta, GA', 'Savannah, GA', 'Athens, GA', 'Sandy Springs, GA', 'Roswell, GA', 'Macon, GA', 'Johns Creek, GA', 'Albany, GA', 'Marietta, GA'],
+      '__state_fl': ['Miami, FL', 'Tampa, FL', 'Orlando, FL', 'Jacksonville, FL', 'St. Petersburg, FL', 'Tallahassee, FL', 'Fort Lauderdale, FL', 'Cape Coral, FL', 'Pembroke Pines, FL', 'Hollywood, FL'],
+      '__state_ny': ['New York, NY', 'Buffalo, NY', 'Rochester, NY', 'Yonkers, NY', 'Syracuse, NY', 'Albany, NY', 'New Rochelle, NY', 'Mount Vernon, NY', 'Schenectady, NY', 'Utica, NY'],
+      '__state_az': ['Phoenix, AZ', 'Tucson, AZ', 'Mesa, AZ', 'Chandler, AZ', 'Scottsdale, AZ', 'Gilbert, AZ', 'Glendale, AZ', 'Tempe, AZ', 'Peoria, AZ', 'Surprise, AZ'],
+      '__state_nc': ['Charlotte, NC', 'Raleigh, NC', 'Greensboro, NC', 'Winston-Salem, NC', 'Durham, NC', 'Fayetteville, NC', 'Cary, NC', 'Wilmington, NC', 'High Point, NC', 'Greenville, NC'],
+      '__state_tn': ['Memphis, TN', 'Nashville, TN', 'Knoxville, TN', 'Chattanooga, TN', 'Clarksville, TN', 'Murfreesboro, TN', 'Franklin, TN', 'Johnson City, TN', 'Bartlett, TN', 'Hendersonville, TN'],
+      '__small_tx': ['League City, TX', 'Sugar Land, TX', 'Katy, TX', 'Pearland, TX', 'Cypress, TX', 'Frisco, TX', 'McKinney, TX', 'Allen, TX', 'Plano, TX', 'Round Rock, TX'],
+      '__small_ga': ['Roswell, GA', 'Alpharetta, GA', 'Sandy Springs, GA', 'Johns Creek, GA', 'Dunwoody, GA', 'Marietta, GA', 'Smyrna, GA', 'Peachtree Corners, GA', 'Newnan, GA', 'Lawrenceville, GA'],
+      '__small_fl': ['Clearwater, FL', 'St. Petersburg, FL', 'Lakeland, FL', 'Palm Bay, FL', 'Pompano Beach, FL', 'Boca Raton, FL', 'Sarasota, FL', 'Cape Coral, FL', 'Fort Myers, FL', 'Naples, FL'],
+      '__small_ny': ['Yonkers, NY', 'Syracuse, NY', 'Albany, NY', 'New Rochelle, NY', 'Mount Vernon, NY', 'Schenectady, NY', 'Utica, NY', 'Binghamton, NY', 'Troy, NY', 'Niagara Falls, NY'],
+      '__small_az': ['Scottsdale, AZ', 'Gilbert, AZ', 'Chandler, AZ', 'Tempe, AZ', 'Glendale, AZ', 'Peoria, AZ', 'Surprise, AZ', 'Goodyear, AZ', 'Buckeye, AZ', 'Avondale, AZ'],
+      '__small_nc': ['Cary, NC', 'Wilmington, NC', 'High Point, NC', 'Greenville, NC', 'Asheville, NC', 'Concord, NC', 'Gastonia, NC', 'Chapel Hill, NC', 'Jacksonville, NC', 'Burlington, NC'],
+      '__small_tn': ['Murfreesboro, TN', 'Franklin, TN', 'Johnson City, TN', 'Hendersonville, TN', 'Kingsport, TN', 'Collierville, TN', 'Smyrna, TN', 'Germantown, TN', 'Brentwood, TN', 'Jackson, TN'],
     };
 
     let cities = [city];
-    if (allStateLists[city]) cities = allStateLists[city];
+    if (allCityLists[city]) cities = allCityLists[city];
 
     // Run inline scraper
     (async () => {
