@@ -17,7 +17,7 @@ const args = process.argv.slice(2);
 const remoteIdx = args.indexOf('--remote');
 const remoteUrl = remoteIdx >= 0 ? args[remoteIdx + 1] : null;
 const filteredArgs = remoteIdx >= 0 ? args.filter((_, i) => i !== remoteIdx && i !== remoteIdx + 1) : args;
-const [,, niche, city, state, goalCountStr, goalType] = filteredArgs;
+const [niche, city, state, goalCountStr, goalType] = filteredArgs;
 const goalCount = parseInt(goalCountStr) || 50;
 
 function writeProgress(msg, found, goal) {
@@ -107,22 +107,24 @@ async function run() {
         try {
           const content = fs.readFileSync(path.join(outputDir, file), 'utf8');
           const raw = JSON.parse(content);
-          if (!Array.isArray(raw)) continue;
-          // Extract city/state from filename: painting-new-york-ny-2026-... -> new york, NY
-          const fileParts = file.replace(/\.json$/, '').split('-');
-          const stateCode = fileParts[fileParts.length - 5]?.toUpperCase() || state || '';
-          const cityName = fileParts.slice(1, fileParts.length - 5).map(p => p.charAt(0).toUpperCase() + p.slice(1)).join(' ');
-          for (const item of raw) {
+          // Handle both array and {value: array} formats
+          const items = Array.isArray(raw) ? raw : (raw.value || []);
+          if (!items.length) continue;
+          for (const item of items) {
             const key = (item.name || '').toLowerCase().replace(/[^a-z0-9]/g, '');
             if (key && !seen.has(key)) {
               seen.add(key);
+              // Parse city from address: "123 Main St, Houston, TX 77001" → "Houston"
+              const addrParts = (item.address || '').split(',').map(s => s.trim());
+              const leadCity = addrParts.length >= 2 ? addrParts[addrParts.length - 3] || addrParts[0] : city;
+              const leadState = addrParts.length >= 2 ? addrParts[addrParts.length - 2]?.replace(/[0-9]+.*$/, '').trim() : state;
               allLeads.push({
                 business_name: item.name || '',
                 phone: item.phone || '',
                 website: item.website || '',
                 address: item.address || '',
-                city: item.address?.split(',')[0] || cityName || city,
-                state: stateCode || state || '',
+                city: leadCity || city,
+                state: leadState || state || '',
                 niche,
                 rating: item.rating || 0,
                 reviews: item.reviewCount || 0,
