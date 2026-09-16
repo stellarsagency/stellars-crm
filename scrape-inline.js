@@ -1,10 +1,19 @@
 const https = require('https');
+const http = require('http');
 
 function httpGet(url) {
   return new Promise((resolve, reject) => {
-    https.get(url, {
-      headers: { 'User-Agent': 'StellarsCRM/2.0 (contact@stellars.com)' }
+    const mod = url.startsWith('https') ? https : http;
+    mod.get(url, {
+      headers: {
+        'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36',
+        'Accept': 'text/html,application/xhtml+xml,application/xml;q=0.9,*/*;q=0.8',
+        'Accept-Language': 'en-US,en;q=0.5',
+      }
     }, (res) => {
+      if (res.statusCode === 301 || res.statusCode === 302) {
+        return httpGet(res.headers.location).then(resolve).catch(reject);
+      }
       let data = '';
       res.on('data', chunk => data += chunk);
       res.on('end', () => resolve(data));
@@ -12,127 +21,133 @@ function httpGet(url) {
   });
 }
 
-function httpPost(url, body) {
-  return new Promise((resolve, reject) => {
-    const urlObj = new URL(url);
-    const req = https.request({
-      hostname: urlObj.hostname,
-      path: urlObj.pathname,
-      method: 'POST',
-      headers: { 'Content-Type': 'application/x-www-form-urlencoded', 'User-Agent': 'StellarsCRM/2.0' }
-    }, (res) => {
-      let data = '';
-      res.on('data', chunk => data += chunk);
-      res.on('end', () => resolve(data));
-    });
-    req.on('error', reject);
-    req.setTimeout(30000, () => { req.destroy(); reject(new Error('timeout')); });
-    req.write(body);
-    req.end();
-  });
-}
-
-const NICHE_SEARCH = {
-  'Pest Control': ['pest control', 'exterminator', 'pest management'],
-  'Auto Detailing': ['auto detailing', 'car detailing', 'car wash'],
-  'Painting': ['painting contractor', 'house painter', 'paint store'],
-  'Fence': ['fence contractor', 'fencing company', 'fence installer'],
-  'Landscaping': ['landscaping', 'lawn care', 'garden center'],
-  'Pressure Washing': ['pressure washing', 'power washing', 'exterior cleaning'],
-  'Cleaning': ['cleaning service', 'janitorial', 'house cleaning'],
-  'Pool Service': ['pool service', 'pool cleaning', 'swimming pool maintenance'],
+const NICHE_YELLOWPAGES = {
+  'Pest Control': 'pest-control',
+  'Auto Detailing': 'auto-detailing',
+  'Painting': 'painters',
+  'Fence': 'fences',
+  'Landscaping': 'landscaping',
+  'Pressure Washing': 'pressure-washers',
+  'Cleaning': 'cleaning-services',
+  'Pool Service': 'pool-service',
+  'Handyman': 'handyman',
+  'Tattoo': 'tattoo-parlors',
+  'Concrete': 'concrete-contractors',
 };
 
-const CITY_COORDS = {
-  'Houston': [29.76, -95.37], 'Dallas': [32.78, -96.80], 'San Antonio': [29.42, -98.49],
-  'Austin': [30.27, -97.74], 'Fort Worth': [32.73, -97.33], 'El Paso': [31.76, -106.44],
-  'Atlanta': [33.75, -84.39], 'Savannah': [32.08, -81.09], 'Augusta': [33.47, -81.97],
-  'Miami': [25.76, -80.19], 'Tampa': [27.95, -82.46], 'Orlando': [28.54, -81.38],
-  'Jacksonville': [30.33, -81.66], 'New York': [40.71, -74.01], 'Buffalo': [42.89, -78.88],
-  'Phoenix': [33.45, -112.07], 'Tucson': [32.22, -110.97], 'Charlotte': [35.23, -80.84],
-  'Raleigh': [35.78, -78.64], 'Nashville': [36.16, -86.78], 'Knoxville': [35.96, -83.92],
-  'Los Angeles': [34.05, -118.24], 'San Diego': [32.72, -117.16], 'Las Vegas': [36.17, -115.14],
-  'Chicago': [41.88, -87.63], 'Columbus': [39.96, -82.99], 'Cleveland': [41.50, -81.69],
-  'Indianapolis': [39.77, -86.16], 'Seattle': [47.61, -122.33], 'Portland': [45.52, -122.68],
-  'Denver': [39.74, -104.99], 'Kansas City': [39.10, -94.58], 'Oklahoma City': [35.47, -97.52],
-  'Birmingham': [33.52, -86.81], 'Louisville': [38.25, -85.76], 'Memphis': [35.15, -90.05],
-  'New Orleans': [29.95, -90.07], 'Pittsburgh': [40.44, -79.99], 'Philadelphia': [39.95, -75.17],
-  'Baltimore': [39.29, -76.61], 'Richmond': [37.54, -77.43], 'Cincinnati': [39.10, -84.51],
-  'Chattanooga': [35.05, -85.31], 'Arlington': [32.74, -97.11], 'Plano': [33.02, -96.70],
-  'McKinney': [33.20, -96.62], 'Frisco': [33.15, -96.82], 'Lubbock': [33.58, -101.85],
-  'Laredo': [27.50, -99.50], 'Irving': [32.81, -96.96], 'Garland': [32.91, -96.64],
-  'Amarillo': [35.22, -101.83], 'Grand Prairie': [32.75, -97.02], 'Brownsville': [25.90, -97.50],
-  'Pasadena': [29.70, -95.13], 'Mesquite': [32.77, -96.60],
-};
-
-function getCoords(city) {
-  const clean = city.replace(/,\s*[A-Z]{2}$/, '').trim();
-  return CITY_COORDS[clean] || null;
-}
-
-async function searchNominatim(query, lat, lon, limit = 20) {
-  const q = encodeURIComponent(query);
-  const url = `https://nominatim.openstreetmap.org/search?q=${q}&format=json&limit=${limit}&addressdetails=1&extratags=1`;
-  const data = await httpGet(url);
-  return JSON.parse(data);
-}
-
-async function scrapeGoogleMaps(niche, location, maxResults = 25) {
+function parseYellowPages(html) {
   const leads = [];
-  const seen = new Set();
+  const nameRegex = /class="business-name"[^>]*>.*?<a[^>]*>([^<]+)<\/a>/gi;
+  const phoneRegex = /class="phones[^"]*"[^>]*>([^<]+)/gi;
+  const websiteRegex = /class="track-visit-website"[^>]*href="([^"]+)"/gi;
+  const addressRegex = /class="street-address"[^>]*>([^<]+)/gi;
+  const localityRegex = /class="locality"[^>]*>([^<]+)/gi;
+  const ratingRegex = /class="result-rating[^"]*"[^>]*>/gi;
 
-  try {
-    const searchTerms = NICHE_SEARCH[niche] || [niche.toLowerCase()];
-    const coords = getCoords(location);
-    const cityName = location.split(',')[0]?.trim() || location;
+  const names = [];
+  const phones = [];
+  const websites = [];
+  const addresses = [];
+  const localities = [];
 
-    for (const term of searchTerms) {
-      if (leads.length >= maxResults) break;
-      const query = `${term} ${cityName}`;
-      console.log(`  Nominatim search: "${query}"`);
+  let m;
+  while ((m = nameRegex.exec(html)) !== null) names.push(m[1].trim());
+  while ((m = phoneRegex.exec(html)) !== null) phones.push(m[1].trim());
+  while ((m = websiteRegex.exec(html)) !== null) websites.push(m[1]);
+  while ((m = addressRegex.exec(html)) !== null) addresses.push(m[1].trim());
+  while ((m = localityRegex.exec(html)) !== null) localities.push(m[1].trim());
 
-      try {
-        const results = await searchNominatim(query, coords?.[0], coords?.[1], 20);
-        console.log(`  Got ${results.length} results`);
+  for (let i = 0; i < names.length; i++) {
+    if (!names[i] || names[i].length < 3) continue;
+    leads.push({
+      business_name: names[i],
+      phone: phones[i] || null,
+      website: websites[i] || null,
+      address: addresses[i] || null,
+      city: localities[i] || null,
+      has_website: !!websites[i] && websites[i].length > 5,
+    });
+  }
+  return leads;
+}
 
-        for (const r of results) {
-          const name = r.display_name?.split(',')[0]?.trim();
-          if (!name || name.length < 3 || seen.has(name.toLowerCase())) continue;
-          seen.add(name.toLowerCase());
-
-          const phone = r.extrats?.phone || r.extrats?.['contact:phone'] || null;
-          const website = r.extrats?.website || r.extrats?.['contact:website'] || null;
-
-          leads.push({
-            business_name: name,
-            phone,
-            website,
-            city: r.address?.city || r.address?.town || r.address?.village || cityName,
-            state: r.address?.state || location.split(',')[1]?.trim() || '',
-            niche,
-            has_website: !!website,
-            source: 'openstreetmap',
-            rating: null,
-            reviews: null,
-            latitude: parseFloat(r.lat) || null,
-            longitude: parseFloat(r.lon) || null
-          });
-
-          if (leads.length >= maxResults) break;
-        }
-      } catch(e) {
-        console.log(`  Search failed: ${e.message}`);
-      }
-
-      // Rate limit: Nominatim requires 1 req/sec
-      await new Promise(r => setTimeout(r, 1200));
-    }
-
-    console.log(`  Total: ${leads.length} leads for "${niche} in ${location}"`);
-  } catch(e) {
-    console.error(`  Scrape error: ${e.message}`);
+async function scrapeGoogleMaps(niche, location, maxResults = 30) {
+  const ypSlug = NICHE_YELLOWPAGES[niche];
+  if (!ypSlug) {
+    console.log(`  No Yellow Pages slug for "${niche}", using generic search`);
   }
 
+  const leads = [];
+  const seen = new Set();
+  const cityName = location.split(',')[0]?.trim() || location;
+  const stateCode = location.split(',')[1]?.trim() || '';
+
+  // Try multiple search approaches
+  const searchUrls = [];
+
+  if (ypSlug) {
+    searchUrls.push({
+      url: `https://www.yellowpages.com/search?search_terms=${ypSlug}&geo_location_terms=${encodeURIComponent(cityName + ', ' + stateCode)}&page=1`,
+      source: 'yellowpages'
+    });
+  }
+
+  // Also try direct search
+  searchUrls.push({
+    url: `https://www.yellowpages.com/search?search_terms=${encodeURIComponent(niche.toLowerCase())}&geo_location_terms=${encodeURIComponent(cityName + ', ' + stateCode)}&page=1`,
+    source: 'yellowpages'
+  });
+
+  for (const search of searchUrls) {
+    if (leads.length >= maxResults) break;
+
+    try {
+      console.log(`  Yellow Pages: ${niche} in ${cityName}, ${stateCode}`);
+      const html = await httpGet(search.url);
+
+      if (html.includes('robot') || html.includes('captcha') || html.includes('blocked')) {
+        console.log(`  Yellow Pages: blocked/captcha detected`);
+        continue;
+      }
+
+      const parsed = parseYellowPages(html);
+      console.log(`  Got ${parsed.length} results from Yellow Pages`);
+
+      for (const lead of parsed) {
+        const key = lead.business_name.toLowerCase();
+        if (seen.has(key)) continue;
+        seen.add(key);
+
+        // Basic website analysis
+        let website_analysis = null;
+        if (lead.website) {
+          website_analysis = { is_outdated: false, has_mobile: true, has_ssl: lead.website.startsWith('https') };
+        }
+
+        leads.push({
+          ...lead,
+          city: cityName,
+          state: stateCode,
+          niche,
+          source: 'yellowpages',
+          rating: null,
+          reviews: null,
+          latitude: null,
+          longitude: null,
+          website_analysis,
+        });
+
+        if (leads.length >= maxResults) break;
+      }
+    } catch(e) {
+      console.log(`  Yellow Pages error: ${e.message}`);
+    }
+
+    // Rate limit
+    await new Promise(r => setTimeout(r, 2000));
+  }
+
+  console.log(`  Total: ${leads.length} leads for "${niche} in ${cityName}, ${stateCode}"`);
   return leads;
 }
 
