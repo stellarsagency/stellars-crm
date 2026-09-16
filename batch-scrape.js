@@ -166,33 +166,29 @@ async function run() {
     finalLeads = allLeads.slice(0, goalCount);
   }
 
-  // Push to remote API or save locally
-  if (remoteUrl) {
-    console.log(`Pushing ${finalLeads.length} leads to ${remoteUrl}`);
-    try {
-      const leadsToSend = finalLeads.map(l => ({
-        business_name: l.business_name, phone: l.phone, website: l.website,
-        city: l.city, state: l.state, niche: l.niche || niche,
-        rating: parseFloat(l.rating) || 0, reviews: l.reviews || 0,
-        source: 'scraper', has_website: l.has_website,
-        latitude: l.latitude || null, longitude: l.longitude || null,
-        address: l.address || null, maps_url: l.maps_url || null,
-        notes: (l.has_website ? `Has website: ${l.website}` : 'No website - needs one')
-      }));
-      const res = await fetch(`${remoteUrl}/api/leads/bulk`, {
-        method: 'POST', headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ leads: leadsToSend })
-      });
-      const data = await res.json();
-      console.log(`Pushed: ${data.count || leadsToSend.length} leads saved to Railway`);
-    } catch(e) {
-      console.error(`Push failed: ${e.message}`);
-      // Fallback to local file
-      fs.writeFileSync(resultFile, JSON.stringify({ niche, city, state, leads: finalLeads, goal_type: goalType, goal_count: goalCount, scraped_at: new Date().toISOString() }));
-    }
-  } else {
-    console.log(`Writing ${finalLeads.length} leads to results file`);
+  // Push to local server
+  const localUrl = 'http://localhost:3000';
+  console.log(`Pushing ${finalLeads.length} leads to ${localUrl}`);
+  try {
+    const leadsToSend = finalLeads.map(l => ({
+      business_name: l.business_name, phone: l.phone, website: l.website,
+      city: l.city, state: l.state, niche: l.niche || niche,
+      rating: parseFloat(l.rating) || 0, reviews: l.reviews || 0,
+      source: 'scraper', has_website: l.has_website,
+      latitude: l.latitude || null, longitude: l.longitude || null,
+      address: l.address || null, maps_url: l.maps_url || null,
+      notes: (l.has_website ? `Has website: ${l.website}` : 'No website - needs one')
+    }));
+    const res = await fetch(`${localUrl}/api/leads/bulk`, {
+      method: 'POST', headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ leads: leadsToSend })
+    });
+    const data = await res.json();
+    console.log(`Pushed: ${data.count || leadsToSend.length} leads saved locally`);
+  } catch(e) {
+    console.error(`Push failed (is server running?): ${e.message}`);
     fs.writeFileSync(resultFile, JSON.stringify({ niche, city, state, leads: finalLeads, goal_type: goalType, goal_count: goalCount, scraped_at: new Date().toISOString() }));
+    console.log(`Saved to ${resultFile} instead`);
   }
   writeProgress(`Done: ${finalLeads.length} leads`, finalLeads.length, goalCount);
   console.log(`Done: ${finalLeads.length} ${goalType} leads from ${citiesSearched} cities`);

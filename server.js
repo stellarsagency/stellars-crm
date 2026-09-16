@@ -8,7 +8,7 @@ process.on('uncaughtException', (err) => { console.error('Uncaught:', err.messag
 process.on('unhandledRejection', (err) => { console.error('Unhandled:', err.message || err); });
 
 const app = express();
-const PORT = process.env.PORT || 3000;
+const PORT = 3000;
 
 function hashPass(pw) { return crypto.createHash('sha256').update(pw).digest('hex'); }
 let currentUser = null;
@@ -609,7 +609,7 @@ async function start() {
     } else { next(); }
   });
 
-  app.listen(PORT, '0.0.0.0', () => {
+  app.listen(PORT, () => {
     console.log(`\n  ╔═══════════════════════════════════════════════╗`);
     console.log(`  ║  Stellars CRM v2.0 - Power Scraper Edition    ║`);
     console.log(`  ║  http://localhost:${PORT}                        ║`);
