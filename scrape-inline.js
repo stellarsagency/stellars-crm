@@ -1,15 +1,26 @@
 const https = require('https');
 
-function httpPost(url, body, contentType = 'application/x-www-form-urlencoded') {
+function httpGet(url) {
+  return new Promise((resolve, reject) => {
+    https.get(url, {
+      headers: { 'User-Agent': 'StellarsCRM/2.0 (contact@stellars.com)' }
+    }, (res) => {
+      let data = '';
+      res.on('data', chunk => data += chunk);
+      res.on('end', () => resolve(data));
+    }).on('error', reject).setTimeout(15000, function() { this.destroy(); reject(new Error('timeout')); });
+  });
+}
+
+function httpPost(url, body) {
   return new Promise((resolve, reject) => {
     const urlObj = new URL(url);
-    const options = {
+    const req = https.request({
       hostname: urlObj.hostname,
-      path: urlObj.pathname + urlObj.search,
+      path: urlObj.pathname,
       method: 'POST',
-      headers: { 'Content-Type': contentType, 'Content-Length': Buffer.byteLength(body) }
-    };
-    const req = https.request(options, (res) => {
+      headers: { 'Content-Type': 'application/x-www-form-urlencoded', 'User-Agent': 'StellarsCRM/2.0' }
+    }, (res) => {
       let data = '';
       res.on('data', chunk => data += chunk);
       res.on('end', () => resolve(data));
@@ -21,19 +32,17 @@ function httpPost(url, body, contentType = 'application/x-www-form-urlencoded') 
   });
 }
 
-// Map niche names to OpenStreetMap tags
-const NICHE_TAGS = {
-  'Pest Control': 'shop=pest_control',
-  'Auto Detailing': 'shop=car_repair',
-  'Painting': 'craft=painter',
-  'Fence': 'craft=fence',
-  'Landscaping': 'shop=garden_centre|craft=landscaper',
-  'Pressure Washing': 'shop=pressure_washing',
-  'Cleaning': 'shop=cleaning',
-  'Pool Service': 'leisure=swimming_pool',
+const NICHE_SEARCH = {
+  'Pest Control': ['pest control', 'exterminator', 'pest management'],
+  'Auto Detailing': ['auto detailing', 'car detailing', 'car wash'],
+  'Painting': ['painting contractor', 'house painter', 'paint store'],
+  'Fence': ['fence contractor', 'fencing company', 'fence installer'],
+  'Landscaping': ['landscaping', 'lawn care', 'garden center'],
+  'Pressure Washing': ['pressure washing', 'power washing', 'exterior cleaning'],
+  'Cleaning': ['cleaning service', 'janitorial', 'house cleaning'],
+  'Pool Service': ['pool service', 'pool cleaning', 'swimming pool maintenance'],
 };
 
-// City coordinates for Overpass queries
 const CITY_COORDS = {
   'Houston': [29.76, -95.37], 'Dallas': [32.78, -96.80], 'San Antonio': [29.42, -98.49],
   'Austin': [30.27, -97.74], 'Fort Worth': [32.73, -97.33], 'El Paso': [31.76, -106.44],
@@ -49,8 +58,11 @@ const CITY_COORDS = {
   'Birmingham': [33.52, -86.81], 'Louisville': [38.25, -85.76], 'Memphis': [35.15, -90.05],
   'New Orleans': [29.95, -90.07], 'Pittsburgh': [40.44, -79.99], 'Philadelphia': [39.95, -75.17],
   'Baltimore': [39.29, -76.61], 'Richmond': [37.54, -77.43], 'Cincinnati': [39.10, -84.51],
-  'Chattanooga': [35.05, -85.31], 'Chandler': [33.30, -111.84], 'Gilbert': [33.35, -111.79],
-  'Mesa': [33.42, -111.83], 'Scottsdale': [33.49, -111.93], 'Greensboro': [36.07, -79.79],
+  'Chattanooga': [35.05, -85.31], 'Arlington': [32.74, -97.11], 'Plano': [33.02, -96.70],
+  'McKinney': [33.20, -96.62], 'Frisco': [33.15, -96.82], 'Lubbock': [33.58, -101.85],
+  'Laredo': [27.50, -99.50], 'Irving': [32.81, -96.96], 'Garland': [32.91, -96.64],
+  'Amarillo': [35.22, -101.83], 'Grand Prairie': [32.75, -97.02], 'Brownsville': [25.90, -97.50],
+  'Pasadena': [29.70, -95.13], 'Mesquite': [32.77, -96.60],
 };
 
 function getCoords(city) {
@@ -58,97 +70,65 @@ function getCoords(city) {
   return CITY_COORDS[clean] || null;
 }
 
+async function searchNominatim(query, lat, lon, limit = 20) {
+  const q = encodeURIComponent(query);
+  const url = `https://nominatim.openstreetmap.org/search?q=${q}&format=json&limit=${limit}&addressdetails=1&extratags=1`;
+  const data = await httpGet(url);
+  return JSON.parse(data);
+}
+
 async function scrapeGoogleMaps(niche, location, maxResults = 25) {
   const leads = [];
+  const seen = new Set();
 
   try {
-    const tags = NICHE_TAGS[niche] || 'shop=yes';
+    const searchTerms = NICHE_SEARCH[niche] || [niche.toLowerCase()];
     const coords = getCoords(location);
+    const cityName = location.split(',')[0]?.trim() || location;
 
-    if (!coords) {
-      console.log(`  No coords for "${location}", using search`);
-      // Fallback: search by city name in Overpass
-      const query = `[out:json][timeout:25];area[name="${location.split(',')[0]}"]->.a;(node["name"](area.a);way["name"](area.a););out body;`;
-      const body = `data=${encodeURIComponent(query)}`;
-      const url = `https://overpass-api.de/api/interpreter`;
-      const data = await httpPost(url, body);
-      const parsed = JSON.parse(data);
-      // Filter by niche-related elements
-      const elements = (parsed.elements || []).filter(e => e.tags && e.tags.name && (e.tags.phone || e.tags.website || e.tags['contact:phone']));
-      for (const el of elements.slice(0, maxResults)) {
-        leads.push({
-          business_name: el.tags.name,
-          phone: el.tags.phone || el.tags['contact:phone'] || null,
-          website: el.tags.website || el.tags['contact:website'] || null,
-          city: location.split(',')[0]?.trim() || location,
-          state: location.split(',')[1]?.trim() || '',
-          niche,
-          has_website: !!el.tags.website,
-          source: 'openstreetmap',
-          rating: null,
-          reviews: null
-        });
-      }
-      console.log(`  Found ${leads.length} from OSM area search`);
-      return leads;
-    }
-
-    // Bounding box around coordinates (roughly 20km)
-    const lat = coords[0], lon = coords[1];
-    const delta = 0.15;
-    const south = lat - delta, north = lat + delta;
-    const west = lon - delta, east = lon + delta;
-
-    // Build Overpass query
-    const tagParts = tags.split('|').map(t => {
-      const [key, val] = t.split('=');
-      return val ? `["${key}"="${val}"]` : `["${key}"]`;
-    });
-    const tagQuery = tagParts.join('|');
-
-    const query = `
-[out:json][timeout:25];
-(
-  node${tagQuery}(${south},${west},${north},${east});
-  way${tagQuery}(${south},${west},${north},${east});
-);
-out body;
->;
-out skel qt;`;
-
-    console.log(`  Overpass query for ${niche} in ${location} (${lat},${lon})`);
-    const body = `data=${encodeURIComponent(query)}`;
-    const url = `https://overpass-api.de/api/interpreter`;
-    const data = await httpPost(url, body);
-    const parsed = JSON.parse(data);
-
-    const elements = parsed.elements || [];
-    console.log(`  Got ${elements.length} elements from Overpass`);
-
-    for (const el of elements) {
-      if (!el.tags || !el.tags.name) continue;
-      const phone = el.tags.phone || el.tags['contact:phone'] || null;
-      const website = el.tags.website || el.tags['contact:website'] || null;
-
-      leads.push({
-        business_name: el.tags.name,
-        phone,
-        website,
-        city: location.split(',')[0]?.trim() || location,
-        state: location.split(',')[1]?.trim() || '',
-        niche,
-        has_website: !!website,
-        source: 'openstreetmap',
-        rating: null,
-        reviews: null,
-        latitude: el.lat || null,
-        longitude: el.lon || null
-      });
-
+    for (const term of searchTerms) {
       if (leads.length >= maxResults) break;
+      const query = `${term} ${cityName}`;
+      console.log(`  Nominatim search: "${query}"`);
+
+      try {
+        const results = await searchNominatim(query, coords?.[0], coords?.[1], 20);
+        console.log(`  Got ${results.length} results`);
+
+        for (const r of results) {
+          const name = r.display_name?.split(',')[0]?.trim();
+          if (!name || name.length < 3 || seen.has(name.toLowerCase())) continue;
+          seen.add(name.toLowerCase());
+
+          const phone = r.extrats?.phone || r.extrats?.['contact:phone'] || null;
+          const website = r.extrats?.website || r.extrats?.['contact:website'] || null;
+
+          leads.push({
+            business_name: name,
+            phone,
+            website,
+            city: r.address?.city || r.address?.town || r.address?.village || cityName,
+            state: r.address?.state || location.split(',')[1]?.trim() || '',
+            niche,
+            has_website: !!website,
+            source: 'openstreetmap',
+            rating: null,
+            reviews: null,
+            latitude: parseFloat(r.lat) || null,
+            longitude: parseFloat(r.lon) || null
+          });
+
+          if (leads.length >= maxResults) break;
+        }
+      } catch(e) {
+        console.log(`  Search failed: ${e.message}`);
+      }
+
+      // Rate limit: Nominatim requires 1 req/sec
+      await new Promise(r => setTimeout(r, 1200));
     }
 
-    console.log(`  Found ${leads.length} businesses for "${niche} in ${location}"`);
+    console.log(`  Total: ${leads.length} leads for "${niche} in ${location}"`);
   } catch(e) {
     console.error(`  Scrape error: ${e.message}`);
   }
