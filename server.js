@@ -390,7 +390,7 @@ async function start() {
     const { niche, city, state, max_results, headless, goalType, goalCount } = req.body;
     if (!niche || !city) return res.status(400).json({ error: 'niche and city required' });
 
-    if (scraperState.status === 'running') return res.json({ status: 'running' });
+    if (scraperState.status === 'running') return res.json({ status: 'running', runId: scraperState.runId });
 
     scraperState = { status: 'running', leads: [], error: null, started: Date.now(), runId: (scraperState.runId || 0) + 1 };
     allScrapedLeads = [];

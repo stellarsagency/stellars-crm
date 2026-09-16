@@ -78,7 +78,7 @@ const CITY_COORDS = {
   'McKinney': [33.20, -96.62], 'Frisco': [33.15, -96.82], 'Lubbock': [33.58, -101.85],
   'Laredo': [27.50, -99.50], 'Irving': [32.81, -96.96], 'Garland': [32.91, -96.64],
   'Amarillo': [35.22, -101.83], 'Grand Prairie': [32.75, -97.02], 'Brownsville': [25.90, -97.50],
-  'Pasadena': [29.70, -95.13], 'Mesquite': [32.77, -96.60], 'Aurora': [41.76, -88.32],
+  'Pasadena': [29.70, -95.13], 'Mesquite': [32.77, -96.60], 'Corpus Christi': [27.80, -97.40], 'Aurora': [41.76, -88.32],
   'Rochester': [43.16, -77.61], 'Yonkers': [40.93, -73.90], 'Mesa': [33.42, -111.83],
   'Chandler': [33.30, -111.84], 'Scottsdale': [33.49, -111.93], 'Gilbert': [33.35, -111.79],
   'Glendale': [33.54, -112.19], 'Tempe': [33.43, -111.94], 'Peoria': [33.58, -112.24],
