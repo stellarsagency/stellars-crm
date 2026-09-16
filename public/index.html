@@ -1140,50 +1140,70 @@ async function runMultiNicheScrape() {
   finderLeads = [];
   finderSelected = new Set();
   document.getElementById('finderResults').style.display = 'block';
-  document.getElementById('finderEmpty').style.display = 'block';
+  document.getElementById('finderCount').textContent = '0';
+  document.getElementById('finderEmpty').style.display = 'none';
   
   const goalLabel = goalType === 'no_website' ? 'No Website' : goalType === 'outdated' ? 'Outdated' : 'All';
+  const startTime = Date.now();
   
   for (let ni = 0; ni < niches.length; ni++) {
     const niche = niches[ni];
-    document.getElementById('finderMessage').innerHTML = `<b>Scraping ${ni+1}/${niches.length}: ${niche}</b> — Goal: ${goalCount} ${goalLabel} leads...`;
+    document.getElementById('finderMessage').innerHTML = `<b>Scraping ${ni+1}/${niches.length}: ${niche}</b> — Goal: ${goalCount} ${goalLabel} leads... <span id="finderTimer">0s</span>`;
+    
+    const timerInterval = setInterval(() => {
+      const secs = Math.round((Date.now() - startTime) / 1000);
+      const el = document.getElementById('finderTimer');
+      if (el) el.textContent = secs + 's';
+    }, 1000);
     
     try {
       const startRes = await api('/scraper/run', 'POST', { niche, city, state, max_results: goalCount * 3, headless: true, goalType, goalCount });
       const thisRunId = startRes.runId;
       
-      // Wait for scraper to actually start
       await new Promise(r => setTimeout(r, 2000));
       
       let attempts = 0;
       while (attempts < 300) {
-        await new Promise(r => setTimeout(r, 3000));
+        await new Promise(r => setTimeout(r, 2000));
         attempts++;
-        const elapsed = Math.round(attempts * 3);
+        const elapsed = Math.round(attempts * 2);
         
         const status = await api('/scraper/status');
-        if (status.runId !== thisRunId && status.status === 'done') continue;
+        if (status.runId !== thisRunId && status.status === 'done') {
+          document.getElementById('finderMessage').innerHTML = `<b>Scraping ${ni+1}/${niches.length}: ${niche}</b> — Waiting for scraper to start... <span id="finderTimer">${elapsed}s</span>`;
+          continue;
+        }
+        if (status.status === 'running' || status.status === 'idle') {
+          const found = status.leads ? status.leads.length : 0;
+          document.getElementById('finderMessage').innerHTML = `<b>Scraping ${ni+1}/${niches.length}: ${niche}</b> — ${elapsed}s elapsed — ${found} leads found so far... <span id="finderTimer">${elapsed}s</span>`;
+          continue;
+        }
         if (status.status === 'done') {
+          clearInterval(timerInterval);
           finderLeads = status.leads || [];
           document.getElementById('finderCount').textContent = finderLeads.length;
-          document.getElementById('finderEmpty').style.display = 'none';
           
           const noWeb = finderLeads.filter(l => !l.has_website).length;
           const outdated = finderLeads.filter(l => l.website_analysis?.is_outdated).length;
-          document.getElementById('finderMessage').innerHTML = `✅ <b>${niche}</b> done (${elapsed}s) — Total: ${finderLeads.length} | <span style="color:var(--green)">${noWeb} no website</span> | <span style="color:var(--yellow)">${outdated} outdated</span>`;
+          
+          if (finderLeads.length === 0) {
+            document.getElementById('finderMessage').innerHTML = `⚠️ <b>${niche}</b> done (${elapsed}s) — No leads found. Try a different city or niche.`;
+            document.getElementById('finderEmpty').style.display = 'block';
+          } else {
+            document.getElementById('finderEmpty').style.display = 'none';
+            document.getElementById('finderMessage').innerHTML = `✅ <b>${niche}</b> done (${elapsed}s) — Total: ${finderLeads.length} | <span style="color:var(--green)">${noWeb} no website</span> | <span style="color:var(--yellow)">${outdated} outdated</span>`;
+          }
           renderFinderLeads(finderLeads);
           break;
         }
         if (status.status === 'error') {
+          clearInterval(timerInterval);
           document.getElementById('finderMessage').innerHTML = `❌ ${niche} failed: ${status.error}`;
           break;
         }
-        
-        // Show progress
-        const current = status.leads ? status.leads.length : 0;
-        document.getElementById('finderMessage').innerHTML = `<b>${niche}</b> (${ni+1}/${niches.length}) — ${elapsed}s — ${current} leads found so far...`;
       }
     } catch(e) {
+      clearInterval(timerInterval);
       document.getElementById('finderMessage').innerHTML = `❌ ${niche} error: ${e.message}`;
     }
     
