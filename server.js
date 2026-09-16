@@ -421,24 +421,97 @@ async function start() {
     let cities = [city];
     if (allCityLists[city]) cities = allCityLists[city];
 
-    // Run inline scraper
+    // Run Playwright scraper (Google Maps)
+    const { exec } = require('child_process');
+    const fs = require('fs');
+    const pathMod = require('path');
+    const scraperDir = 'C:\\Users\\Abdul Wadood\\Documents\\Default Project\\maps-scrapper';
+    const outputDir = pathMod.join(scraperDir, 'output');
+
+    const NICHE_QUERY = {
+      'Pest Control': 'pest control', 'Auto Detailing': 'auto detailing', 'Painting': 'painting contractor',
+      'Fence': 'fence contractor', 'Landscaping': 'landscaping', 'Pressure Washing': 'pressure washing',
+      'Cleaning': 'cleaning service', 'Pool Service': 'pool service', 'Handyman': 'handyman',
+      'Tattoo': 'tattoo', 'Concrete': 'concrete contractor',
+    };
+
     (async () => {
       try {
-        const { scrapeGoogleMaps } = require('./scrape-inline');
         const goal = goalCount || 50;
+        const query = NICHE_QUERY[niche] || niche.toLowerCase();
 
         for (const loc of cities) {
           if (scraperState.status !== 'running') break;
           console.log(`Scraping ${loc} for ${niche}...`);
+
           try {
-            const results = await scrapeGoogleMaps(niche, loc, 25);
-            allScrapedLeads = allScrapedLeads.concat(results);
+            // Clean output dir
+            try { fs.readdirSync(outputDir).filter(f => f.endsWith('.json')).forEach(f => fs.unlinkSync(pathMod.join(outputDir, f))); } catch(e) {}
+
+            // Run Playwright scraper
+            const maxResults = Math.min(25, goal * 2);
+            await new Promise((resolve, reject) => {
+              const child = exec(`node dist/index.js run -q "${query}" -l "${loc}" -m ${maxResults} --headless true --min-delay 100 --max-delay 300`, { cwd: scraperDir, timeout: 120000, windowsHide: true });
+              child.stdout.on('data', d => {});
+              child.stderr.on('data', d => {});
+              child.on('close', () => resolve());
+              child.on('error', () => resolve());
+              setTimeout(resolve, 125000);
+            });
+
+            // Read output files
+            const files = fs.readdirSync(outputDir).filter(f => f.endsWith('.json'));
+            for (const file of files) {
+              try {
+                const raw = JSON.parse(fs.readFileSync(pathMod.join(outputDir, file), 'utf8'));
+                const items = raw.value || raw;
+                if (!Array.isArray(items)) continue;
+                const seenLocal = new Set();
+                for (const item of items) {
+                  const key = (item.name||'').toLowerCase().replace(/[^a-z0-9]/g,'');
+                  if (!key || seenLocal.has(key)) continue;
+                  seenLocal.add(key);
+                  const addr = (item.address||'').split(',').map(s=>s.trim());
+                  const lastPart = addr[addr.length-1] || '';
+                  const stateZip = lastPart.match(/^([A-Z]{2})\s+\d{5}/);
+                  let leadState = stateZip ? stateZip[1] : state || '';
+                  if (!leadState || leadState.length > 2) leadState = state || '';
+                  let leadCity = loc.split(',')[0]?.trim() || 'Unknown';
+                  for (let i = addr.length - 2; i >= 1; i--) {
+                    const p = addr[i];
+                    if (p.match(/^[A-Z]{2}$/) || p.match(/^\d{5}/) || p === 'United States') continue;
+                    leadCity = p; break;
+                  }
+                  // Fix bad city parsing
+                  if (!leadCity || leadCity.length > 20 || leadCity.match(/^\d/) || leadCity.match(/^[A-Z]{2}\s+\d{5}/)) {
+                    leadCity = loc.split(',')[0]?.trim() || 'Unknown';
+                  }
+                  allScrapedLeads.push({
+                    business_name: item.name, phone: item.phone||null, website: item.website||null,
+                    address: item.address||null, city: leadCity, state: leadState, niche,
+                    rating: item.rating||0, reviews: item.reviewCount||0,
+                    source: 'scraper', has_website: !!item.website,
+                    latitude: item.lat||null, longitude: item.lng||null,
+                    maps_url: item.url||null,
+                    website_analysis: null,
+                    notes: item.website ? 'Has website: '+item.website : 'No website - needs one'
+                  });
+                }
+              } catch(e) {}
+            }
+            // Clean output
+            try { fs.readdirSync(outputDir).filter(f => f.endsWith('.json')).forEach(f => fs.unlinkSync(pathMod.join(outputDir, f))); } catch(e) {}
+
+            // Dedupe
+            const seenMap = new Map();
+            allScrapedLeads.forEach(l => { const k = l.business_name.toLowerCase().replace(/[^a-z0-9]/g,''); if (!seenMap.has(k)) seenMap.set(k, l); });
+            allScrapedLeads = Array.from(seenMap.values());
             scraperState.leads = allScrapedLeads;
-            console.log(`  ${loc}: ${results.length} leads (total: ${allScrapedLeads.length})`);
+            console.log(`  ${loc}: ${allScrapedLeads.length} leads (total so far)`);
           } catch(e) { console.log(`  ${loc} failed: ${e.message}`); }
+
           if (goalType === 'no_website') { if (allScrapedLeads.filter(l => !l.has_website).length >= goal) break; }
           else if (allScrapedLeads.length >= goal) break;
-          await new Promise(r => setTimeout(r, 2000));
         }
 
         // Deduplicate
