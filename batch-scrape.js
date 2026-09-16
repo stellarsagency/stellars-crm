@@ -1,6 +1,6 @@
 /**
  * Goal-based batch scraper - keeps scraping until goal is met
- * Usage: node batch-scrape.js <niche> <city> <state> <goalCount> <goalType>
+ * Usage: node batch-scrape.js <niche> <city> <state> <goalCount> <goalType> [--remote <apiUrl>]
  */
 const { exec } = require('child_process');
 const fs = require('fs');
@@ -11,7 +11,11 @@ const outputDir = path.join(scraperDir, 'output');
 const resultFile = path.join(__dirname, 'scrape-results.json');
 const progressFile = path.join(__dirname, 'scrape-progress.json');
 
-const [,, niche, city, state, goalCountStr, goalType] = process.argv;
+const args = process.argv.slice(2);
+const remoteIdx = args.indexOf('--remote');
+const remoteUrl = remoteIdx >= 0 ? args[remoteIdx + 1] : null;
+const filteredArgs = remoteIdx >= 0 ? args.filter((_, i) => i !== remoteIdx && i !== remoteIdx + 1) : args;
+const [,, niche, city, state, goalCountStr, goalType] = filteredArgs;
 const goalCount = parseInt(goalCountStr) || 50;
 
 function writeProgress(msg, found, goal) {
@@ -158,8 +162,32 @@ async function run() {
     finalLeads = allLeads.slice(0, goalCount);
   }
 
-  console.log(`Writing ${finalLeads.length} leads to results file`);
-  fs.writeFileSync(resultFile, JSON.stringify({ niche, city, state, leads: finalLeads, goal_type: goalType, goal_count: goalCount, scraped_at: new Date().toISOString() }));
+  // Push to remote API or save locally
+  if (remoteUrl) {
+    console.log(`Pushing ${finalLeads.length} leads to ${remoteUrl}`);
+    try {
+      const leadsToSend = finalLeads.map(l => ({
+        business_name: l.business_name, phone: l.phone, website: l.website,
+        city: l.city, state: l.state, niche: l.niche || niche,
+        rating: parseFloat(l.rating) || 0, reviews: l.reviews || 0,
+        source: 'scraper', has_website: l.has_website,
+        notes: (l.has_website ? `Has website: ${l.website}` : 'No website - needs one')
+      }));
+      const res = await fetch(`${remoteUrl}/api/leads/bulk`, {
+        method: 'POST', headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ leads: leadsToSend })
+      });
+      const data = await res.json();
+      console.log(`Pushed: ${data.count || leadsToSend.length} leads saved to Railway`);
+    } catch(e) {
+      console.error(`Push failed: ${e.message}`);
+      // Fallback to local file
+      fs.writeFileSync(resultFile, JSON.stringify({ niche, city, state, leads: finalLeads, goal_type: goalType, goal_count: goalCount, scraped_at: new Date().toISOString() }));
+    }
+  } else {
+    console.log(`Writing ${finalLeads.length} leads to results file`);
+    fs.writeFileSync(resultFile, JSON.stringify({ niche, city, state, leads: finalLeads, goal_type: goalType, goal_count: goalCount, scraped_at: new Date().toISOString() }));
+  }
   writeProgress(`Done: ${finalLeads.length} leads`, finalLeads.length, goalCount);
   console.log(`Done: ${finalLeads.length} ${goalType} leads from ${citiesSearched} cities`);
 }
