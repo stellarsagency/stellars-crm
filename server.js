@@ -142,10 +142,10 @@ async function start() {
     const leads = req.body.leads || [];
     let count = 0;
     for (const l of leads) {
-      run(`INSERT INTO leads (business_name,owner_name,phone,email,website,city,state,niche,rating,reviews,status,source,has_website,latitude,longitude,notes)
-        VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)`,
+      run(`INSERT INTO leads (business_name,owner_name,phone,email,website,city,state,niche,rating,reviews,status,source,has_website,latitude,longitude,notes,address,maps_url)
+        VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)`,
         [l.business_name, l.owner_name||null, l.phone||null, l.email||null, l.website||null, l.city||null, l.state||null, l.niche||null,
-         l.rating||null, l.reviews||null, 'new', l.source||'scraper', l.has_website?1:0, l.latitude||null, l.longitude||null, l.notes||null]);
+         l.rating||null, l.reviews||null, 'new', l.source||'scraper', l.has_website?1:0, l.latitude||null, l.longitude||null, l.notes||null, l.address||null, l.maps_url||null]);
       count++;
     }
     res.json({ message: `${count} leads imported`, count });

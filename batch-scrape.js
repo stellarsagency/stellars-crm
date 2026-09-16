@@ -173,6 +173,8 @@ async function run() {
         city: l.city, state: l.state, niche: l.niche || niche,
         rating: parseFloat(l.rating) || 0, reviews: l.reviews || 0,
         source: 'scraper', has_website: l.has_website,
+        latitude: l.latitude || null, longitude: l.longitude || null,
+        address: l.address || null, maps_url: l.maps_url || null,
         notes: (l.has_website ? `Has website: ${l.website}` : 'No website - needs one')
       }));
       const res = await fetch(`${remoteUrl}/api/leads/bulk`, {

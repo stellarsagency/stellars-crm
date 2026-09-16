@@ -125,6 +125,8 @@ async function initDB() {
   try { run('ALTER TABLE leads ADD COLUMN website_score INTEGER DEFAULT 0'); } catch(e) {}
   try { run('ALTER TABLE leads ADD COLUMN website_grade TEXT'); } catch(e) {}
   try { run('ALTER TABLE leads ADD COLUMN lead_category TEXT DEFAULT "cold"'); } catch(e) {}
+  try { run('ALTER TABLE leads ADD COLUMN address TEXT'); } catch(e) {}
+  try { run('ALTER TABLE leads ADD COLUMN maps_url TEXT'); } catch(e) {}
   try { run('ALTER TABLE leads ADD COLUMN google_maps TEXT'); } catch(e) {}
 
   // Create default admin user
