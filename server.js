@@ -331,7 +331,7 @@ async function start() {
   const fs = require('fs');
   const scraperDir = path.join(__dirname, '..', 'maps-scrapper');
   const outputDir = path.join(scraperDir, 'output');
-  let scraperState = { status: 'idle', leads: [], error: null, started: null };
+  let scraperState = { status: 'idle', leads: [], error: null, started: null, runId: 0 };
   let allScrapedLeads = []; // Accumulate all results
   const resultFile = path.join(__dirname, 'scrape-results.json');
 
@@ -392,11 +392,12 @@ async function start() {
 
     if (scraperState.status === 'running') return res.json({ status: 'running' });
 
-    scraperState = { status: 'running', leads: [], error: null, started: Date.now() };
+    scraperState = { status: 'running', leads: [], error: null, started: Date.now(), runId: (scraperState.runId || 0) + 1 };
     allScrapedLeads = [];
+    const currentRunId = scraperState.runId;
     console.log(`Scraper started: ${niche} in ${city} — Goal: ${goalCount || 50} ${goalType || 'all'}`);
 
-    res.json({ status: 'started' });
+    res.json({ status: 'started', runId: scraperState.runId });
 
     // Resolve city lists
     const allCityLists = {

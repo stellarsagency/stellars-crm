@@ -1149,7 +1149,11 @@ async function runMultiNicheScrape() {
     document.getElementById('finderMessage').innerHTML = `<b>Scraping ${ni+1}/${niches.length}: ${niche}</b> — Goal: ${goalCount} ${goalLabel} leads...`;
     
     try {
-      await api('/scraper/run', 'POST', { niche, city, state, max_results: goalCount * 3, headless: true, goalType, goalCount });
+      const startRes = await api('/scraper/run', 'POST', { niche, city, state, max_results: goalCount * 3, headless: true, goalType, goalCount });
+      const thisRunId = startRes.runId;
+      
+      // Wait for scraper to actually start
+      await new Promise(r => setTimeout(r, 2000));
       
       let attempts = 0;
       while (attempts < 300) {
@@ -1158,6 +1162,7 @@ async function runMultiNicheScrape() {
         const elapsed = Math.round(attempts * 3);
         
         const status = await api('/scraper/status');
+        if (status.runId !== thisRunId && status.status === 'done') continue;
         if (status.status === 'done') {
           finderLeads = status.leads || [];
           document.getElementById('finderCount').textContent = finderLeads.length;
