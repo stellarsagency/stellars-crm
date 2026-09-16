@@ -433,6 +433,7 @@ async function start() {
           try {
             const results = await scrapeGoogleMaps(niche, loc, 25);
             allScrapedLeads = allScrapedLeads.concat(results);
+            scraperState.leads = allScrapedLeads;
             console.log(`  ${loc}: ${results.length} leads (total: ${allScrapedLeads.length})`);
           } catch(e) { console.log(`  ${loc} failed: ${e.message}`); }
           if (goalType === 'no_website') { if (allScrapedLeads.filter(l => !l.has_website).length >= goal) break; }
