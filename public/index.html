@@ -1175,7 +1175,11 @@ async function runMultiNicheScrape() {
         }
         if (status.status === 'running' || status.status === 'idle') {
           const found = status.leads ? status.leads.length : 0;
-          document.getElementById('finderMessage').innerHTML = `<b>Scraping ${ni+1}/${niches.length}: ${niche}</b> — ${elapsed}s elapsed — ${found} leads found so far... <span id="finderTimer">${elapsed}s</span>`;
+          finderLeads = status.leads || [];
+          document.getElementById('finderCount').textContent = found;
+          document.getElementById('finderEmpty').style.display = found > 0 ? 'none' : 'block';
+          document.getElementById('finderMessage').innerHTML = `<b>Scraping ${ni+1}/${niches.length}: ${niche}</b> — ${elapsed}s — ${found} leads so far... <span id="finderTimer">${elapsed}s</span>`;
+          if (found > 0) renderFinderLeads(finderLeads);
           continue;
         }
         if (status.status === 'done') {
