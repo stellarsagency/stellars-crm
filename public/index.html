@@ -296,6 +296,8 @@ textarea.form-input{resize:vertical;min-height:80px}
         <label>City *</label>
         <select class="form-input" id="finderCity" onchange="updateState()">
           <option value="">Select city...</option>
+          <option disabled>=== SEARCH SCOPE ===</option>
+          <option value="__whole_usa" data-state="ALL">🇺🇸 Whole USA (All States)</option>
           <option disabled>=== FULL STATES ===</option>
           <option value="__state_tx" data-state="TX">🤠 Full Texas (30 cities)</option>
           <option value="__state_ga" data-state="GA">🍑 Full Georgia (20 cities)</option>
