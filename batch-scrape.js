@@ -6,7 +6,9 @@ const { exec } = require('child_process');
 const fs = require('fs');
 const path = require('path');
 
-const scraperDir = path.join(__dirname, '..', 'maps-scrapper');
+const pathRelative = path.join(__dirname, '..', 'maps-scrapper');
+const pathDefault = 'C:\\Users\\Abdul Wadood\\Documents\\Default Project\\maps-scrapper';
+const scraperDir = fs.existsSync(pathRelative) ? pathRelative : pathDefault;
 const outputDir = path.join(scraperDir, 'output');
 const resultFile = path.join(__dirname, 'scrape-results.json');
 const progressFile = path.join(__dirname, 'scrape-progress.json');
