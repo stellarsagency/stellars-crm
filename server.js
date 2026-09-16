@@ -398,67 +398,48 @@ async function start() {
 
     res.json({ status: 'started' });
 
-    // Write temp bat file
-    const batFile = path.join(__dirname, 'run-scraper.bat');
-    const goal = goalCount || max_results || 50;
-    const type = goalType || 'all';
-    fs.writeFileSync(batFile, `@echo off\nnode batch-scrape.js "${niche}" "${city}" "${state || ''}" "${goal}" "${type}"\n`);
-    exec(`start /min cmd /c "${batFile}"`, { cwd: __dirname, windowsHide: true });
+    // Resolve city lists
+    const allStateLists = {
+      '__whole_usa': ['Houston, TX', 'Dallas, TX', 'San Antonio, TX', 'Austin, TX', 'Fort Worth, TX', 'Atlanta, GA', 'Savannah, GA', 'Miami, FL', 'Tampa, FL', 'Orlando, FL', 'Jacksonville, FL', 'New York, NY', 'Buffalo, NY', 'Phoenix, AZ', 'Tucson, AZ', 'Charlotte, NC', 'Raleigh, NC', 'Nashville, TN', 'Knoxville, TN', 'Los Angeles, CA', 'San Diego, CA', 'Las Vegas, NV', 'Chicago, IL', 'Columbus, OH', 'Cleveland, OH', 'Indianapolis, IN', 'Seattle, WA', 'Portland, OR', 'Denver, CO', 'Kansas City, MO', 'Oklahoma City, OK', 'Birmingham, AL', 'Louisville, KY', 'Memphis, TN', 'New Orleans, LA', 'Pittsburgh, PA', 'Philadelphia, PA', 'Baltimore, MD', 'Richmond, VA'],
+    };
 
-    // Poll for results file
-    const scrapeStarted = Date.now();
-    let resultDetected = false;
-    const pollInterval = setInterval(() => {
-      if (resultDetected) return;
-      if (fs.existsSync(resultFile)) {
-        try {
-          const stat = fs.statSync(resultFile);
-          if (stat.mtimeMs > scrapeStarted - 2000) {
-            resultDetected = true;
-            clearInterval(pollInterval);
-            // Wait a bit for file to be fully written
-            setTimeout(() => {
-              try {
-                const data = JSON.parse(fs.readFileSync(resultFile, 'utf8'));
-                const newLeads = data.leads || [];
-                allScrapedLeads = allScrapedLeads.concat(newLeads);
-                const seenMap = new Map();
-                allScrapedLeads.forEach(l => {
-                  const key = l.business_name.toLowerCase().replace(/[^a-z0-9]/g, '');
-                  if (!seenMap.has(key)) seenMap.set(key, l);
-                });
-                allScrapedLeads = Array.from(seenMap.values());
-                // Mark leads already in database
-                try {
-                  const existingLeads = db.getAll('leads', 'SELECT business_name, phone FROM leads') || [];
-                  const existingNames = new Set(existingLeads.map(l => l.business_name.toLowerCase().replace(/[^a-z0-9]/g, '')));
-                  const existingPhones = new Set(existingLeads.map(l => (l.phone || '').replace(/[^0-9]/g, '')));
-                  allScrapedLeads.forEach(l => {
-                    const nameKey = l.business_name.toLowerCase().replace(/[^a-z0-9]/g, '');
-                    const phoneKey = (l.phone || '').replace(/[^0-9]/g, '');
-                    l.already_saved = existingNames.has(nameKey) || (phoneKey && existingPhones.has(phoneKey));
-                  });
-                } catch(e) {}
-                scraperState = { status: 'done', leads: allScrapedLeads, error: null, started: scraperState.started };
-                console.log(`Scraper done: ${scraperState.leads.length} unique leads total`);
-              } catch(e) { console.log('Error reading results:', e.message); }
-            }, 1000);
-          }
-        } catch(e) {}
-      }
-      // Also check progress file for status updates
-      if (fs.existsSync(progressFile)) {
-        try {
-          const prog = JSON.parse(fs.readFileSync(progressFile, 'utf8'));
-          if (prog.message && scraperState.status === 'running') {
-            scraperState.leads = scraperState.leads || [];
-          }
-        } catch(e) {}
-      }
-    }, 2000);
+    let cities = [city];
+    if (allStateLists[city]) cities = allStateLists[city];
 
-    // Timeout after 30 min
-    setTimeout(() => { clearInterval(pollInterval); }, 1800000);
+    // Run inline scraper
+    (async () => {
+      try {
+        const { scrapeGoogleMaps } = require('./scrape-inline');
+        const goal = goalCount || 50;
+
+        for (const loc of cities) {
+          if (scraperState.status !== 'running') break;
+          console.log(`Scraping ${loc} for ${niche}...`);
+          try {
+            const results = await scrapeGoogleMaps(niche, loc, 25);
+            allScrapedLeads = allScrapedLeads.concat(results);
+            console.log(`  ${loc}: ${results.length} leads (total: ${allScrapedLeads.length})`);
+          } catch(e) { console.log(`  ${loc} failed: ${e.message}`); }
+          if (goalType === 'no_website') { if (allScrapedLeads.filter(l => !l.has_website).length >= goal) break; }
+          else if (allScrapedLeads.length >= goal) break;
+          await new Promise(r => setTimeout(r, 2000));
+        }
+
+        // Deduplicate
+        const seenMap = new Map();
+        allScrapedLeads.forEach(l => { const key = l.business_name.toLowerCase().replace(/[^a-z0-9]/g, ''); if (!seenMap.has(key)) seenMap.set(key, l); });
+        allScrapedLeads = Array.from(seenMap.values());
+
+        let finalLeads = allScrapedLeads;
+        if (goalType === 'no_website') finalLeads = allScrapedLeads.filter(l => !l.has_website).slice(0, goal);
+        else finalLeads = allScrapedLeads.slice(0, goal);
+
+        scraperState = { status: 'done', leads: finalLeads, error: null, started: scraperState.started };
+        console.log(`Scraper done: ${finalLeads.length} leads`);
+      } catch(e) {
+        scraperState = { status: 'error', leads: [], error: e.message, started: scraperState.started };
+      }
+    })();
   });
 
   app.get('/api/scraper/status', (req, res) => {
